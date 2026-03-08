@@ -1,0 +1,9 @@
+Hint 1
+
+Title: What is up with all these `brk`s?
+
+Vague Answer:                   What does brk *really* do? What does forcing an interrupt mean?
+A little bit more specific:     `brk` essentially hands control back to the ROM, which you probably never will do in a game.
+Very obvious:                   Besides the first two `brk`s, the other ones aren't actually code
+
+
