@@ -24,12 +24,13 @@
 
 1010  4C 66 10  jmp $1066   ; Jumps to actual program
 
-; Game data
+; Unused data
 1013  00        .db $00		
 1014  00        .db $00		
 1015  00        .db $00		
 1016  00        .db $00		
-1017  00        .db $00		
+1017  00        .db $00	
+
 1018  00        .db $00		
 1019  00        .db $00		
 101A  00        .db $00		
@@ -38,7 +39,8 @@
 101D  00        .db $00		
 101E  00        .db $00		
 101F  00        .db $00		
-1020  01        .db $01		
+1020  01        .db $01
+
 1021  00        .db $00		
 1022  00        .db $00		
 1023  00        .db $00		
@@ -49,30 +51,36 @@
 1028  01        .db $01		
 1029  09        .db $09		
 102A  08        .db $08		
-102B  01        .db $01		
-102C  00        .db $00	    ; Player horizontal position (0x1 leftmost; 0x14 rightmost)
-102D  00        .db $00		; Player vertical position (0x10 topmost; 0x14 bottommost)
+102B  01        .db $01
+
+102C  00        .db $00	    ; Player horizontal position. Range: 0x1 to 0x14
+102D  00        .db $00		; Player vertical position. Range: 0x10 to 0x14
 102E  00        .db $00		
 102F  00        .db $00		
 1030  00        .db $00		
 1031  00        .db $00		
 1032  00        .db $00		
 1033  01        .db $01		
-1034  00        .db $00		; Joystick direction
-1035  00        .db $00		; Set to 1 if the tape button is pressed down
+1034  00        .db $00		; Movement direction. Byte bits represent move
+                            ; direction as down left up right respectively i.e.
+							; 0b1=0x1 -> right movement whereas 0b10=0x2 -> up
+							; movement.
+1035  00        .db $00		; Set to 1 while shoot button is pressed
 1036  00        .db $00		
 1037  00        .db $00	    ; Player lives	
-1038  00        .db $00		
-1039  00        .db $00		
-103A  14        .db $14		
-103B  0C        .db $0c		
-103C  0E        .db $0e		
-103D  04        .db $04		
-103E  10        .db $10		
-103F  11        .db $11		
-1040  12        .db $12		
-1041  13        .db $13		
-1042  00        .db $00		
+1038  00        .db $00		; Level #
+1039  00        .db $00		; Set to 1 if in level transition
+
+103A  14        .db $14		; # of levels maybe?
+103B  0C        .db $0c		; Length of snake at level 1
+103C  0E        .db $0e		; at level 2
+103D  04        .db $04	    ; at level 3
+103E  10        .db $10		; at level 4
+103F  11        .db $11		; at level 5
+1040  12        .db $12		; at level 6
+1041  13        .db $13	    ; at level 7
+
+1042  00        .db $00 
 1043  02        .db $02		
 1044  01        .db $01		
 1045  00        .db $00		
@@ -84,7 +92,7 @@
 104B  07        .db $07		
 104C  02        .db $02		
 104D  05        .db $05		
-104E  01        .db $01		
+104E  01        .db $01	
 104F  04        .db $04		
 1050  02        .db $02		
 1051  06        .db $06		
@@ -95,7 +103,8 @@
 1056  06        .db $06		
 1057  05        .db $05		
 1058  04        .db $04		
-1059  02        .db $02		
+1059  02        .db $02
+
 105A  01        .db $01		
 105B  04        .db $04		
 105C  05        .db $05		
@@ -110,31 +119,33 @@
 1065  00        .db $00		
 
 ; Actual code starts here
-1066  A9 00     lda #$00
-1068  8D 13 91  sta $9113	
-106B  8D 22 91  sta $9122	
-106E  A9 FF     lda #$ff	
-1070  8D 05 90  sta $9005	
-1073  A9 00     lda #$00	
-1075  8D 89 02  sta $0289	
-1078  A9 EA     lda #$ea	
-107A  8D 28 03  sta $0328	
-107D  A9 C1     lda #$c1	
+1066  A9 00     lda #$00    ; 0 can set ports A and B for input
+1068  8D 13 91  sta $9113	; Use port A for input
+106B  8D 22 91  sta $9122	; Use port B for input
+106E  A9 FF     lda #$ff	; FF means characters will be stored at 1c00
+1070  8D 05 90  sta $9005	; Tells VIC where custom characters are stored
+1073  A9 00     lda #$00	; Disable the keyboard
+1075  8D 89 02  sta $0289	; .
+1078  A9 EA     lda #$ea	; Enables RUN/STOP and RESTORE keys
+107A  8D 28 03  sta $0328	; .
+107D  A9 C1     lda #$c1	; 
 107F  8D 18 03  sta $0318	
 1082  20 88 12  jsr $1288	
 1085  A9 01     lda #$01	
 1087  8D 33 10  sta $1033	
-108A  8D CD 12  sta $12cd	
-108D  A9 00     lda #$00	
-108F  09 60     ora #$60	
-1091  8D 0E 90  sta $900e	
-1094  A0 00     ldy #$00	
-1096  A9 00     lda #$00	
-1098  99 18 10  sta $1018,y	
-109B  C8        iny 		
-109C  C0 05     cpy #$05	
-109E  D0 F8     bne $1098	
-10A0  A0 00     ldy #$00	
+108A  8D CD 12  sta $12cd
+
+; Game jumps here after death
+108D  A9 00     lda #$00	; Clear A in preperation for playing a sound
+108F  09 60     ora #$60	; Setting high bits of 900e plays a sound
+1091  8D 0E 90  sta $900e	; Play death sound
+1094  A0 00     ldy #$00	; Initialize index register to loop over game data
+1096  A9 00     lda #$00	; Sets game data with 0s
+1098  99 18 10  sta $1018,y	; 0s out some game data
+109B  C8        iny 		; .
+109C  C0 05     cpy #$05	; Will keep clearing until 6 variables have been 0'd
+109E  D0 F8     bne $1098	; .
+10A0  A0 00     ldy #$00	; Clear
 10A2  8C 38 10  sty $1038	
 10A5  B9 4A 10  lda $104a,y	
 10A8  8D 64 10  sta $1064	
@@ -285,43 +296,48 @@
 1211  20 23 13  jsr $1323	
 1214  A9 08     lda #$08	
 1216  8D 0F 90  sta $900f	
-1219  60        rts 	
+1219  60        rts 
 
-121A  12        .db $12		
-121B  13        .db $13		
-121C  12        .db $12		
-121D  13        .db $13		
-121E  12        .db $12		
-121F  13        .db $13		
-1220  14        .db $14		
-1221  14        .db $14		
-1222  14        .db $14		
-1223  15        .db $15		
-1224  14        .db $14		
-1225  15        .db $15		
-1226  14        .db $14		
-1227  15        .db $15		
-1228  14        .db $14		
-1229  15        .db $15		
-122A  DD        .db $dd		
-122B  DB        .db $db		
-122C  D9        .db $d9		
-122D  B7        .db $b7		
-122E  B4        .db $b4		
-122F  AF        .db $af		
-1230  D6        .db $d6		
-1231  D6        .db $d6		
-1232  D6        .db $d6		
-1233  00        .db $00		
-1234  D6        .db $d6		
-1235  00        .db $00		
-1236  D6        .db $d6		
-1237  00        .db $00		
-1238  D6        .db $d6		
-1239  00        .db $00		
+121A  12        .db ___X__X_	    
+121B  13        .db ___X__XX	
+121C  12        .db ___X__X_	
+121D  13        .db ___X__XX	
+121E  12        .db ___X__X_	
+121F  13        .db ___X__XX	
+1220  14        .db ___X_X__	
+1221  14        .db ___X_X__
+
+1222  14        .db ___X_X__	
+1223  15        .db ___X_X_X	
+1224  14        .db ___X_X__	
+1225  15        .db ___X_X_X	
+1226  14        .db ___X_X__	
+1227  15        .db ___X_X_X	
+1228  14        .db ___X_X__	
+1229  15        .db ___X_X_X
+
+122A  DD        .db XX_XXX_X	
+122B  DB        .db XX_XX_XX	
+122C  D9        .db XX_XX__X	
+122D  B7        .db X_XX_XXX	
+122E  B4        .db X_XX_X__	
+122F  AF        .db X_X_XXXX	
+1230  D6        .db XX_X_XX_	
+1231  D6        .db XX_X_XX_
+
+1232  D6        .db XX_X_XX_	
+1233  00        .db ________	
+1234  D6        .db XX_X_XX_	
+1235  00        .db ________	
+1236  D6        .db XX_X_XX_	
+1237  00        .db ________	
+1238  D6        .db XX_X_XX_	
+1239  00        .db ________
+
 123A  00        .db $00		
-123B  00        .db $00		
+123B  00        .db $00	
 
+; Handles getting hit and decrementing lives
 123C  20 D8 1C  jsr $1cd8	
 123F  20 0C 1A  jsr $1a0c	
 1242  20 7D 1A  jsr $1a7d	
@@ -343,14 +359,15 @@
 1270  D0 DE     bne $1250	
 1272  20 D8 1C  jsr $1cd8	
 1275  20 38 13  jsr $1338	
-1278  AD 37 10  lda $1037	
-127B  C9 00     cmp #$00	
+1278  AD 37 10  lda $1037	; Check if player ran out of lives
+127B  C9 00     cmp #$00	; .
 127D  D0 03     bne $1282	
-127F  4C 85 12  jmp $1285	
-1282  4C F5 10  jmp $10f5	
-1285  4C 8D 10  jmp $108d	
-1288  78        sei 		
-1289  A9 DF     lda #$df	
+127F  4C 85 12  jmp $1285	; Jumps to end of subroutine
+1282  4C F5 10  jmp $10f5	; Handles death
+1285  4C 8D 10  jmp $108d   ; 
+
+1288  78        sei 		; Disable interrupts
+1289  A9 DF     lda #$df	; 
 128B  8D 14 03  sta $0314	
 128E  A0 12     ldy #$12	
 1290  8C 15 03  sty $0315	
@@ -468,7 +485,7 @@
 1334  D0 F2     bne $1328	
 1336  60        rts
 
-1337  60        rts 		; Never runs obviously
+1337  60        rts 		; Never referenced in code
 
 1338  A9 00     lda #$00	
 133A  8D 2C 10  sta $102c	
@@ -503,17 +520,17 @@
 1375  A9 00     lda #$00	
 1377  8D 35 10  sta $1035	
 137A  AD 11 91  lda $9111	; 0x9111 = Port A Input/Output Register
-137D  29 20     and #$20	; 0x20=0b00100000. Checks if tape button down bit is on
-137F  C9 20     cmp #$20	; .
-1381  F0 05     beq $1388	; If it isn't, set 0x1035 to 1
-1383  A9 01     lda #$01	; .
+137D  29 20     and #$20	; 0x20 corresponds to the FIRE button bit
+137F  C9 20     cmp #$20	; Check if FIRE bit is enabled i.e. if player shot
+1381  F0 05     beq $1388	; Leave mem. 1035 untouched if it is
+1383  A9 01     lda #$01	; Set 1035 to 1 otherwise when the FIRE bit was off
 1385  8D 35 10  sta $1035	; .
-1388  A9 00     lda #$00	; Then 0 0x1034
+1388  A9 00     lda #$00	; Clear direction variable
 138A  8D 34 10  sta $1034	; .
-138D  AD 11 91  lda $9111	; Load the same register again
-1390  29 04     and #$04	; 0x04=00000100. Corresponds to joystick up off
+138D  AD 11 91  lda $9111	; Load joystick input register
+1390  29 04     and #$04	; Bitmask corresponding to JOYSTICK UP OFF
 1392  C9 00     cmp #$00	; Checks if the joystick up off bit is 0
-1394  D0 06     bne $139c	; If it isn't, jump to next subroutine
+1394  D0 06     bne $139c	; If it isn't, jump to next check
 1396  A9 02     lda #$02	; Otherwise, store 0x2 in 0x1034
 1398  8D 34 10  sta $1034	; .
 139B  60        rts 		
@@ -703,11 +720,12 @@
 14A8  20 D8 1C  jsr $1cd8	
 14AB  60        rts 		
 
-14AC  16        .db $16		
-14AD  0A        .db $0a		
-14AE  00        .db $00		
-14AF  00        .db $00		
-14B0  00        .db $00				
+14AC  16        .db $16		; Player character row #
+14AD  0A        .db $0a		; Player character column #
+14AE  00        .db $00		; Just set to 1 for some reason
+14AF  00        .db $00		; Set to 1 while fire button held down
+14B0  00        .db $00		; Set to 3 after first bullet fired, then decrements
+                            ; until 0 then back to 3
 
 
 14B1  A9 00     lda #$00	
@@ -1032,10 +1050,10 @@
 176C  C9 04     cmp #$04	
 176E  F0 03     beq $1773	
 1770  4C 09 16  jmp $1609	
+1773  60        rts
 
-1773  60        .db $60		
-1774  00        .db $00		
-1775  00        .db $00		
+1774  00        .db $00		; Column of last bullet hit
+1775  00        .db $00		; Row of last bullet hit
 1776  00        .db $00		
 1777  00        .db $00		
 
@@ -1055,6 +1073,7 @@
 1797  91 FD     sta ($fd),y	
 1799  60        rts 		
 
+; Snake body offsets
 179A  00        .db $00		
 179B  00        .db $00		
 179C  00        .db $00		
@@ -1074,7 +1093,8 @@
 17AA  00        .db $00		
 17AB  00        .db $00		
 17AC  00        .db $00		
-17AD  00        .db $00		
+17AD  00        .db $00	
+
 17AE  00        .db $00		
 17AF  00        .db $00		
 17B0  00        .db $00		
@@ -1094,7 +1114,8 @@
 17BE  00        .db $00		
 17BF  00        .db $00		
 17C0  00        .db $00		
-17C1  00        .db $00		
+17C1  00        .db $00
+
 17C2  00        .db $00		
 17C3  00        .db $00		
 17C4  00        .db $00		
@@ -1114,12 +1135,14 @@
 17D2  00        .db $00		
 17D3  00        .db $00		
 17D4  00        .db $00		
-17D5  00        .db $00		
+17D5  00        .db $00
+
 17D6  00        .db $00		
 17D7  00        .db $00		
 17D8  00        .db $00		
 17D9  00        .db $00		
-17DA  00        .db $00		
+17DA  00        .db $00	
+
 17DB  00        .db $00		
 17DC  00        .db $00		
 17DD  00        .db $00		
@@ -1135,11 +1158,14 @@
 17E7  00        .db $00		
 17E8  00        .db $00		
 17E9  00        .db $00		
+
 17EA  00        .db $00		
 17EB  00        .db $00		
 17EC  00        .db $00		
-17ED  00        .db $00		
-17EE  00        .db $00		
+17ED  00        .db $00	
+
+17EE  00        .db $00
+
 17EF  00        .db $00		
 17F0  00        .db $00		
 17F1  00        .db $00		
@@ -1174,7 +1200,10 @@
 180E  00        .db $00		
 180F  00        .db $00		
 1810  00        .db $00		
-1811  00        .db $00		
+1811  00        .db $00
+
+; First set to 4
+; 
 1812  00        .db $00		
 
 1813  A0 00     ldy #$00	
@@ -1200,13 +1229,13 @@
 1843  98        tya 		
 1844  99 9A 17  sta $179a,y	
 1847  88        dey 		
-1848  C0 FF     cpy #$ff	
-184A  D0 F7     bne $1843	
-184C  AC 38 10  ldy $1038	
-184F  B9 3A 10  lda $103a,y	
-1852  A8        tay 		
-1853  A9 01     lda #$01	
-1855  99 EA 17  sta $17ea,y	
+1848  C0 FF     cpy #$ff	; Loop until overflow
+184A  D0 F7     bne $1843	; .
+184C  AC 38 10  ldy $1038	; Load level
+184F  B9 3A 10  lda $103a,y	; Load length of snake at this level
+1852  A8        tay 		; Use snake length as index
+1853  A9 01     lda #$01	; Set position of snake head
+1855  99 EA 17  sta $17ea,y	; .
 1858  60        rts 		
 
 1859  00        .db $00			
@@ -1555,66 +1584,70 @@
 1B2C  20 7D 1A  jsr $1a7d	
 1B2F  60        rts 		
 
-1B30  00        .db $00		
-1B31  00        .db $00		
-1B32  00        .db $00		
-1B33  00        .db $00		
-1B34  00        .db $00		
-1B35  00        .db $00		
-1B36  00        .db $00		
+1B30  00        .db $00		; Set to 1 if that heart shaped hazard has spawned
+1B31  00        .db $00		; Timer used to space hazard spawnings
+1B32  00        .db $00		; Loops between 0, 1 and 2 while hazard is on screen
+1B33  00        .db $00		; Hazard column position
+1B34  00        .db $00		; Hazard row position
+1B35  00        .db $00		; Next screen code to display at hazard position
+1B36  00        .db $00		; Color code for next screen code
 
-1B37  AD 30 1B  lda $1b30	
-1B3A  C9 00     cmp #$00	
-1B3C  F0 05     beq $1b43	
-1B3E  C9 01     cmp #$01	
-1B40  F0 2B     beq $1b6d	
-1B42  60        rts 		
+1B37  AD 30 1B  lda $1b30	; Load heart hazard status
+1B3A  C9 00     cmp #$00	; Check if it isn't there
+1B3C  F0 05     beq $1b43	; Jump to next check
+1B3E  C9 01     cmp #$01	; Otherwise if it is spawned, do something else
+1B40  F0 2B     beq $1b6d	; .
+1B42  60        rts 		; Otherwise just return back to caller
 
-1B43  EE 31 1B  inc $1b31	
-1B46  AD 31 1B  lda $1b31	
-1B49  29 3F     and #$3f	
-1B4B  8D 31 1B  sta $1b31	
-1B4E  C9 00     cmp #$00	
-1B50  F0 01     beq $1b53	
-1B52  60        rts 		
+1B43  EE 31 1B  inc $1b31	; Increment hazard spawn counter
+1B46  AD 31 1B  lda $1b31	; Load the hazard spawn counter
+1B49  29 3F     and #$3f	; Mask out last two bits of the counter
+1B4B  8D 31 1B  sta $1b31	; Save new value
+1B4E  C9 00     cmp #$00	; Because of the bitmasking, this counter spawns a 
+                            ; new hazard every 64 increments
+1B50  F0 01     beq $1b53	; Go to spawn hazard
+1B52  60        rts 		; Otherwise, hazard does not have to be spawned,
+                            ; so just return to previous subroutine
 
-1B53  A9 01     lda #$01	
-1B55  8D 30 1B  sta $1b30	
-1B58  AD AD 14  lda $14ad	
-1B5B  8D 33 1B  sta $1b33	
-1B5E  A9 01     lda #$01	
-1B60  8D 34 1B  sta $1b34	
-1B63  A9 00     lda #$00	
-1B65  8D 35 1B  sta $1b35	
-1B68  A9 00     lda #$00	
-1B6A  8D 36 1B  sta $1b36	
-1B6D  EE 32 1B  inc $1b32	
+1B53  A9 01     lda #$01	; Update status variable of the hazard
+1B55  8D 30 1B  sta $1b30	; .
+1B58  AD AD 14  lda $14ad	; Set column to the same as the player's
+1B5B  8D 33 1B  sta $1b33	; .
+1B5E  A9 01     lda #$01	; Initialize hazard position to (0,1) on game screen
+1B60  8D 34 1B  sta $1b34	; .
+1B63  A9 00     lda #$00	; Set next screen code to blank
+1B65  8D 35 1B  sta $1b35	; .
+1B68  A9 00     lda #$00	; Set next color code to black
+1B6A  8D 36 1B  sta $1b36	; .
+1B6D  EE 32 1B  inc $1b32	; 
 1B70  AD 32 1B  lda $1b32	
-1B73  29 01     and #$01	
-1B75  8D 32 1B  sta $1b32	
-1B78  C9 00     cmp #$00	
-1B7A  F0 01     beq $1b7d	
-1B7C  60        rts 		
+1B73  29 01     and #$01	; Only call subroutine 1b7d every other time this
+1B75  8D 32 1B  sta $1b32	; routine is run
+1B78  C9 00     cmp #$00	; .
+1B7A  F0 01     beq $1b7d	; .
+1B7C  60        rts 		; Otherwise, just go back
 
-1B7D  AC 34 1B  ldy $1b34	
-1B80  B9 E7 1C  lda $1ce7,y	
-1B83  85 FB     sta $fb		
-1B85  85 FD     sta $fd		
-1B87  B9 FE 1C  lda $1cfe,y	
-1B8A  85 FC     sta $fc		
-1B8C  18        clc 		
-1B8D  69 78     adc #$78	
-1B8F  85 FE     sta $fe		
-1B91  AC 33 1B  ldy $1b33	
-1B94  AD 35 1B  lda $1b35	
-1B97  91 FB     sta ($fb),y	
-1B99  AD 36 1B  lda $1b36	
-1B9C  91 FD     sta ($fd),y	
-1B9E  AD 34 1B  lda $1b34	
-1BA1  C9 16     cmp #$16	
-1BA3  D0 06     bne $1bab	
-1BA5  A9 00     lda #$00	
-1BA7  8D 30 1B  sta $1b30	
+1B7D  AC 34 1B  ldy $1b34	; Load hazard row position
+1B80  B9 E7 1C  lda $1ce7,y	; Get low bytes of address for that row
+1B83  85 FB     sta $fb		; Store them in zero page for later use
+1B85  85 FD     sta $fd		; .
+1B87  B9 FE 1C  lda $1cfe,y	; Get high byte of address 
+1B8A  85 FC     sta $fc		; Store it along with fb to form full address
+1B8C  18        clc 		; Clear carry bit so it doesn't mess with color mem
+                            ; address calculation
+1B8D  69 78     adc #$78	; Add 0x78 to get address of the screen color memory
+                            ; of the same character
+1B8F  85 FE     sta $fe		; Store new address for later referencing
+1B91  AC 33 1B  ldy $1b33	; Load hazard column position
+1B94  AD 35 1B  lda $1b35	; Load next screen code to replace current with
+1B97  91 FB     sta ($fb),y	; Write the new screen code
+1B99  AD 36 1B  lda $1b36	; Load the color code for new screen code
+1B9C  91 FD     sta ($fd),y	; Write it to corresponding color memory
+1B9E  AD 34 1B  lda $1b34	; Load the current hazard position
+1BA1  C9 16     cmp #$16	; Check if hazard is offscreen
+1BA3  D0 06     bne $1bab	; If not, continue to moving it down
+1BA5  A9 00     lda #$00	; Otherwise, flip hazard status variable
+1BA7  8D 30 1B  sta $1b30	; .
 1BAA  60        rts 		
 
 1BAB  98        tya 		
@@ -1651,264 +1684,295 @@
 1BE2  91 FD     sta ($fd),y	
 1BE4  60        rts 		
 
-1BE5  00        .db $00		
-1BE6  00        .db $00		
-1BE7  00        .db $00		
-1BE8  00        .db $00		
-1BE9  00        .db $00		
-1BEA  00        .db $00		
-1BEB  00        .db $00		
-1BEC  00        .db $00		
-1BED  00        .db $00		
-1BEE  00        .db $00		
-1BEF  00        .db $00		
-1BF0  00        .db $00		
-1BF1  00        .db $00		
-1BF2  00        .db $00		
-1BF3  00        .db $00		
-1BF4  00        .db $00		
-1BF5  00        .db $00		
-1BF6  00        .db $00		
-1BF7  00        .db $00		
-1BF8  00        .db $00		
-1BF9  00        .db $00		
-1BFA  00        .db $00		
-1BFB  00        .db $00		
-1BFC  00        .db $00		
-1BFD  00        .db $00		
-1BFE  00        .db $00		
-1BFF  00        .db $00		
-1C00  00        .db $00		
-1C01  00        .db $00		
-1C02  00        .db $00		
-1C03  00        .db $00		
-1C04  00        .db $00		
-1C05  00        .db $00		
-1C06  00        .db $00		
-1C07  00        .db $00		
-1C08  18        .db $18		
-1C09  24        .db $24		
-1C0A  3C        .db $3c		
-1C0B  5A        .db $5a		
-1C0C  7E        .db $7e		
-1C0D  5A        .db $5a		
-1C0E  3C        .db $3c		
-1C0F  18        .db $18		
-1C10  38        .db $38		
-1C11  5F        .db $5f		
-1C12  A9        .db $a9		
-1C13  1E        .db $1e		
-1C14  1E        .db $1e		
-1C15  A9        .db $a9		
-1C16  5F        .db $5f		
-1C17  38        .db $38		
-1C18  1C        .db $1c		
-1C19  FA        .db $fa		
-1C1A  95        .db $95		
-1C1B  78        .db $78		
-1C1C  78        .db $78		
-1C1D  95        .db $95		
-1C1E  FA        .db $fa		
-1C1F  1C        .db $1c		
-1C20  18        .db $18		
-1C21  7E        .db $7e		
-1C22  E7        .db $e7		
-1C23  5A        .db $5a		
-1C24  5A        .db $5a		
-1C25  E7        .db $e7		
-1C26  7E        .db $7e		
-1C27  18        .db $18		
-1C28  18        .db $18		
-1C29  7E        .db $7e		
-1C2A  FF        .db $ff		
-1C2B  81        .db $81		
-1C2C  3C        .db $3c		
-1C2D  3C        .db $3c		
-1C2E  3C        .db $3c		
-1C2F  00        .db $00		
-1C30  18        .db $18		
-1C31  7E        .db $7e		
-1C32  FF        .db $ff		
-1C33  81        .db $81		
-1C34  3C        .db $3c		
-1C35  24        .db $24		
-1C36  00        .db $00		
-1C37  00        .db $00		
-1C38  18        .db $18		
-1C39  7E        .db $7e		
-1C3A  FF        .db $ff		
-1C3B  81        .db $81		
-1C3C  00        .db $00		
-1C3D  00        .db $00		
-1C3E  00        .db $00		
-1C3F  00        .db $00		
-1C40  44        .db $44		
-1C41  EE        .db $ee		
-1C42  EE        .db $ee		
-1C43  6C        .db $6c		
-1C44  28        .db $28		
-1C45  00        .db $00		
-1C46  10        .db $10		
-1C47  00        .db $00		
-1C48  0E        .db $0e		
-1C49  07        .db $07		
-1C4A  0B        .db $0b		
-1C4B  6D        .db $6d		
-1C4C  D8        .db $d8		
-1C4D  B8        .db $b8		
-1C4E  18        .db $18		
-1C4F  18        .db $18		
-1C50  3C        .db $3c		
-1C51  DB        .db $db		
-1C52  42        .db $42		
-1C53  BD        .db $bd		
-1C54  18        .db $18		
-1C55  BD        .db $bd		
-1C56  42        .db $42		
-1C57  24        .db $24		
-1C58  3C        .db $3c		
-1C59  DB        .db $db		
-1C5A  42        .db $42		
-1C5B  BD        .db $bd		
-1C5C  18        .db $18		
-1C5D  3C        .db $3c		
-1C5E  42        .db $42		
-1C5F  24        .db $24		
-1C60  07        .db $07		
-1C61  08        .db $08		
-1C62  13        .db $13		
-1C63  24        .db $24		
-1C64  49        .db $49		
-1C65  24        .db $24		
-1C66  12        .db $12		
-1C67  09        .db $09		
-1C68  E0        .db $e0		
-1C69  10        .db $10		
-1C6A  C8        .db $c8		
-1C6B  24        .db $24		
-1C6C  92        .db $92		
-1C6D  24        .db $24		
-1C6E  48        .db $48		
-1C6F  90        .db $90		
-1C70  07        .db $07		
-1C71  08        .db $08		
-1C72  13        .db $13		
-1C73  24        .db $24		
-1C74  49        .db $49		
-1C75  92        .db $92		
-1C76  92        .db $92		
-1C77  92        .db $92		
-1C78  E0        .db $e0		
-1C79  10        .db $10		
-1C7A  C8        .db $c8		
-1C7B  24        .db $24		
-1C7C  92        .db $92		
-1C7D  49        .db $49		
-1C7E  49        .db $49		
-1C7F  49        .db $49		
-1C80  00        .db $00		
-1C81  1D        .db $1d		
-1C82  AA        .db $aa		
-1C83  76        .db $76		
-1C84  6B        .db $6b		
-1C85  A7        .db $a7		
-1C86  D2        .db $d2		
-1C87  E5        .db $e5		
-1C88  45        .db $45		
-1C89  C0        .db $c0		
-1C8A  D0        .db $d0		
-1C8B  A1        .db $a1		
-1C8C  6B        .db $6b		
-1C8D  77        .db $77		
-1C8E  AA        .db $aa		
-1C8F  1D        .db $1d		
-1C90  00        .db $00		
-1C91  18        .db $18		
-1C92  24        .db $24		
-1C93  24        .db $24		
-1C94  42        .db $42		
-1C95  52        .db $52		
-1C96  24        .db $24		
-1C97  18        .db $18		
-1C98  18        .db $18		
-1C99  24        .db $24		
-1C9A  42        .db $42		
-1C9B  42        .db $42		
-1C9C  81        .db $81		
-1C9D  91        .db $91		
-1C9E  42        .db $42		
-1C9F  3C        .db $3c		
-1CA0  18        .db $18		
-1CA1  24        .db $24		
-1CA2  3C        .db $3c		
-1CA3  7E        .db $7e		
-1CA4  C3        .db $c3		
-1CA5  BD        .db $bd		
-1CA6  42        .db $42		
-1CA7  24        .db $24		
-1CA8  18        .db $18		
-1CA9  24        .db $24		
-1CAA  3C        .db $3c		
-1CAB  7E        .db $7e		
-1CAC  C3        .db $c3		
-1CAD  3C        .db $3c		
-1CAE  C3        .db $c3		
-1CAF  42        .db $42		
-1CB0  42        .db $42		
-1CB1  E7        .db $e7		
-1CB2  42        .db $42		
-1CB3  00        .db $00		
-1CB4  42        .db $42		
-1CB5  42        .db $42		
-1CB6  42        .db $42		
-1CB7  00        .db $00		
-1CB8  02        .db $02		
-1CB9  03        .db $03		
-1CBA  02        .db $02		
-1CBB  03        .db $03		
-1CBC  02        .db $02		
-1CBD  01        .db $01		
-1CBE  00        .db $00		
-1CBF  00        .db $00		
-1CC0  0F        .db $0f		
-1CC1  10        .db $10		
-1CC2  E0        .db $e0		
-1CC3  18        .db $18		
-1CC4  E7        .db $e7		
-1CC5  18        .db $18		
-1CC6  E0        .db $e0		
-1CC7  00        .db $00		
-1CC8  BF        .db $bf		
-1CC9  C0        .db $c0		
-1CCA  48        .db $48		
-1CCB  5C        .db $5c		
-1CCC  B6        .db $b6		
-1CCD  1B        .db $1b		
-1CCE  01        .db $01		
-1CCF  01        .db $01		
-1CD0  00        .db $00		
-1CD1  80        .db $80		
-1CD2  7C        .db $7c		
-1CD3  60        .db $60		
-1CD4  BE        .db $be		
-1CD5  00        .db $00		
-1CD6  00        .db $00		
-1CD7  00        .db $00		
-1CD8  A9        .db $a9		
-1CD9  00        .db $00		
-1CDA  8D        .db $8d		
-1CDB  0A        .db $0a		
-1CDC  90        .db $90		
-1CDD  8D        .db $8d		
-1CDE  0B        .db $0b		
-1CDF  90        .db $90		
-1CE0  8D        .db $8d		
-1CE1  0C        .db $0c		
-1CE2  90        .db $90		
-1CE3  8D        .db $8d		
-1CE4  0D        .db $0d		
-1CE5  90        .db $90		
-1CE6  60        .db $60		
+1BE5  00        .db ________	; Unused data?
+1BE6  00        .db ________	
+1BE7  00        .db ________	
+1BE8  00        .db ________	
+1BE9  00        .db ________	
+1BEA  00        .db ________	
+1BEB  00        .db ________	
+1BEC  00        .db ________	
+1BED  00        .db ________	
+1BEE  00        .db ________	
+1BEF  00        .db ________	
+1BF0  00        .db ________	
+1BF1  00        .db ________	
+1BF2  00        .db ________	
+1BF3  00        .db ________	
+1BF4  00        .db ________	
+1BF5  00        .db ________	
+1BF6  00        .db ________	
+1BF7  00        .db ________	
+1BF8  00        .db ________	
+1BF9  00        .db ________	
+1BFA  00        .db ________	
+1BFB  00        .db ________	
+1BFC  00        .db ________	
+1BFD  00        .db ________	
+1BFE  00        .db ________	
+1BFF  00        .db ________
+
+; Following data are custom sprites
+; There are 29 custom sprites
+
+1C00  00        .db ________    
+1C01  00        .db ________	
+1C02  00        .db ________	
+1C03  00        .db ________	
+1C04  00        .db ________	
+1C05  00        .db ________	
+1C06  00        .db ________	
+1C07  00        .db ________
+
+1C08  18        .db ___XX___	; Player character
+1C09  24        .db __X__X__	
+1C0A  3C        .db __XXXX__	
+1C0B  5A        .db _X_XX_X_	
+1C0C  7E        .db _XXXXXX_	
+1C0D  5A        .db _X_XX_X_	
+1C0E  3C        .db __XXXX__	
+1C0F  18        .db ___XX___
+
+1C10  38        .db __XXX___	
+1C11  5F        .db _X_XXXXX	
+1C12  A9        .db X_X_X__X	
+1C13  1E        .db ___XXXX_	
+1C14  1E        .db ___XXXX_	
+1C15  A9        .db X_X_X__X	
+1C16  5F        .db _X_XXXXX	
+1C17  38        .db __XXX___
+
+1C18  1C        .db ___XXX__	; Snake head
+1C19  FA        .db XXXXX_X_	
+1C1A  95        .db X__X_X_X	
+1C1B  78        .db _XXXX___	
+1C1C  78        .db _XXXX___	
+1C1D  95        .db X__X_X_X	
+1C1E  FA        .db XXXXX_X_	
+1C1F  1C        .db ___XXX__
+
+1C20  18        .db ___XX___	; Snake body
+1C21  7E        .db _XXXXXX_	
+1C22  E7        .db XXX__XXX	
+1C23  5A        .db _X_XX_X_	
+1C24  5A        .db _X_XX_X_	
+1C25  E7        .db XXX__XXX	
+1C26  7E        .db _XXXXXX_	
+1C27  18        .db ___XX___
+
+1C28  18        .db ___XX___	; Normal mushroom
+1C29  7E        .db _XXXXXX_	
+1C2A  FF        .db XXXXXXXX	
+1C2B  81        .db X______X	
+1C2C  3C        .db __XXXX__	
+1C2D  3C        .db __XXXX__	
+1C2E  3C        .db __XXXX__	
+1C2F  00        .db ________	
+
+1C30  18        .db ___XX___	; Mushroom after 1 hit
+1C31  7E        .db _XXXXXX_	
+1C32  FF        .db XXXXXXXX	
+1C33  81        .db X______X	
+1C34  3C        .db __XXXX__	
+1C35  24        .db __X__X__	
+1C36  00        .db ________	
+1C37  00        .db ________
+
+1C38  18        .db ___XX___	; Mushroom after 2 hits
+1C39  7E        .db _XXXXXX_	
+1C3A  FF        .db XXXXXXXX	
+1C3B  81        .db X______X	
+1C3C  00        .db ________	
+1C3D  00        .db ________	
+1C3E  00        .db ________	
+1C3F  00        .db ________	
+
+1C40  44        .db _X___X__	; Heart thingy that falls from top
+1C41  EE        .db XXX_XXX_	
+1C42  EE        .db XXX_XXX_	
+1C43  6C        .db _XX_XX__	
+1C44  28        .db __X_X___	
+1C45  00        .db ________
+1C46  10        .db ___X____
+1C47  00        .db ________
+
+1C48  0E        .db ____XXX_	; Double mushroom after level clear
+1C49  07        .db _____XXX	
+1C4A  0B        .db ____X_XX	
+1C4B  6D        .db _XX_XX_X	
+1C4C  D8        .db XX_XX___	
+1C4D  B8        .db X_XXX___	
+1C4E  18        .db ___XX___	
+1C4F  18        .db ___XX___	
+
+; The spider body sprites flip between each other as its moving animation
+
+1C50  3C        .db __XXXX__	; Spider body sprite (1/2)
+1C51  DB        .db XX_XX_XX	
+1C52  42        .db _X____X_	
+1C53  BD        .db X_XXXX_X	
+1C54  18        .db ___XX___	
+1C55  BD        .db X_XXXX_X	
+1C56  42        .db _X____X_
+1C57  24        .db __X__X__
+
+1C58  3C        .db __XXXX__	; Spider body sprite (2/2)
+1C59  DB        .db XX_XX_XX	
+1C5A  42        .db _X____X_	
+1C5B  BD        .db X_XXXX_X	
+1C5C  18        .db ___XX___	
+1C5D  3C        .db __XXXX__	
+1C5E  42        .db _X____X_	
+1C5F  24        .db __X__X__
+
+1C60  07        .db _____XXX	; Left spider leg sprite (1/2)
+1C61  08        .db ____X___	
+1C62  13        .db ___X__XX	
+1C63  24        .db __X__X__	
+1C64  49        .db _X__X__X	
+1C65  24        .db __X__X__	
+1C66  12        .db ___X__X_	
+1C67  09        .db ____X__X
+
+1C68  E0        .db XXX_____	; Right spider leg sprite (1/2)
+1C69  10        .db ___X____	
+1C6A  C8        .db XX__X___	
+1C6B  24        .db __X__X__	
+1C6C  92        .db X__X__X_	
+1C6D  24        .db __X__X__	
+1C6E  48        .db _X__X___	
+1C6F  90        .db X__X____	
+
+1C70  07        .db _____XXX	; Left spider leg sprite (2/2)
+1C71  08        .db ____X___	
+1C72  13        .db ___X__XX	
+1C73  24        .db __X__X__	
+1C74  49        .db _X__X__X	
+1C75  92        .db X__X__X_	
+1C76  92        .db X__X__X_	
+1C77  92        .db X__X__X_	
+
+1C78  E0        .db XXX_____	; Right spider leg sprite (2/2)
+1C79  10        .db ___X____	
+1C7A  C8        .db XX__X___	
+1C7B  24        .db __X__X__	
+1C7C  92        .db X__X__X_	
+1C7D  49        .db _X__X__X	
+1C7E  49        .db _X__X__X	
+1C7F  49        .db _X__X__X
+
+1C80  00        .db ________	; Top part of fancy C used in menu
+1C81  1D        .db ___XXX_X	
+1C82  AA        .db X_X_X_X_	
+1C83  76        .db _XXX_XX_	
+1C84  6B        .db _XX_X_XX	
+1C85  A7        .db X_X__XXX	
+1C86  D2        .db XX_X__X_	
+1C87  E5        .db XXX__X_X	
+
+1C88  45        .db _X___X_X	; Bottom part of fancy C used in menu
+1C89  C0        .db XX______	
+1C8A  D0        .db XX_X____	
+1C8B  A1        .db X_X____X	
+1C8C  6B        .db _XX_X_XX	
+1C8D  77        .db _XXX_XXX	
+1C8E  AA        .db X_X_X_X_	
+1C8F  1D        .db ___XXX_X	
+
+1C90  00        .db ________	
+1C91  18        .db ___XX___	; When dead, flips between this and next sprite
+1C92  24        .db __X__X__	; three times
+1C93  24        .db __X__X__	
+1C94  42        .db _X____X_	
+1C95  52        .db _X_X__X_	
+1C96  24        .db __X__X__	
+1C97  18        .db ___XX___	
+
+1C98  18        .db ___XX___	; .
+1C99  24        .db __X__X__	
+1C9A  42        .db _X____X_	
+1C9B  42        .db _X____X_	
+1C9C  81        .db X______X	
+1C9D  91        .db X__X___X	
+1C9E  42        .db _X____X_	
+1C9F  3C        .db __XXXX__	
+
+1CA0  18        .db ___XX___	; Then flips between this and the next sprite
+1CA1  24        .db __X__X__	; three times. Then it clears the screen and
+1CA2  3C        .db __XXXX__	; restarts the game
+1CA3  7E        .db _XXXXXX_	
+1CA4  C3        .db XX____XX	
+1CA5  BD        .db X_XXXX_X	
+1CA6  42        .db _X____X_	
+1CA7  24        .db __X__X__	
+
+1CA8  18        .db ___XX___	
+1CA9  24        .db __X__X__	; .
+1CAA  3C        .db __XXXX__	
+1CAB  7E        .db _XXXXXX_	
+1CAC  C3        .db XX____XX	
+1CAD  3C        .db __XXXX__	
+1CAE  C3        .db XX____XX	
+1CAF  42        .db _X____X_	
+
+1CB0  42        .db _X____X_	; Bullet sprite
+1CB1  E7        .db XXX__XXX	
+1CB2  42        .db _X____X_	
+1CB3  00        .db ________	
+1CB4  42        .db _X____X_	
+1CB5  42        .db _X____X_	
+1CB6  42        .db _X____X_	
+1CB7  00        .db ________	
+
+1CB8  02        .db ______X_	; Left-most tail thingy of chilopoda underline
+1CB9  03        .db ______XX	
+1CBA  02        .db ______X_	
+1CBB  03        .db ______XX	
+1CBC  02        .db ______X_	
+1CBD  01        .db _______X	
+1CBE  00        .db ________	
+1CBF  00        .db ________	
+
+1CC0  0F        .db ____XXXX	; Closes off tail thingy 
+1CC1  10        .db ___X____	
+1CC2  E0        .db XXX_____	
+1CC3  18        .db ___XX___	
+1CC4  E7        .db XXX__XXX	
+1CC5  18        .db ___XX___	
+1CC6  E0        .db XXX_____	
+1CC7  00        .db ________
+
+1CC8  BF        .db X_XXXXXX	; Main body of chilopoda underline
+1CC9  C0        .db XX______	
+1CCA  48        .db _X__X___	
+1CCB  5C        .db _X_XXX__	
+1CCC  B6        .db X_XX_XX_	
+1CCD  1B        .db ___XX_XX	
+1CCE  01        .db _______X	
+1CCF  01        .db _______X
+
+1CD0  00        .db ________	; Right side closing pointy thing of underline
+1CD1  80        .db X_______	
+1CD2  7C        .db _XXXXX__	
+1CD3  60        .db _XX_____	
+1CD4  BE        .db X_XXXXX_	
+1CD5  00        .db ________	
+1CD6  00        .db ________	
+1CD7  00        .db ________	
+
+; End of sprites
+
+; Following subroutine stops all audio
+1CD8  A9 00     lda #$00	; Setting audio registers to 0 stops any audio
+1CDA  8D 0A 90  sta $900a	; BASS register
+1CDD  8D 0B 90  sta $900b	; ALTO register
+1CE0  8D 0C 90  sta $900c	; SOPRANO register
+1CE3  8D 0D 90  sta $900d	; NOISE register
+1CE6  60        rts
+
+; Look up table for the address of the first character of each screen row
+
+; Low bytes
 1CE7  00        .db $00		
 1CE8  16        .db $16		
 1CE9  2C        .db $2c		
@@ -1931,7 +1995,9 @@
 1CFA  A2        .db $a2		
 1CFB  B8        .db $b8		
 1CFC  CE        .db $ce		
-1CFD  E4        .db $e4		
+1CFD  E4        .db $e4	
+
+; High bytes
 1CFE  1E        .db $1e		
 1CFF  1E        .db $1e		
 1D00  1E        .db $1e		
@@ -1954,7 +2020,9 @@
 1D11  1F        .db $1f		
 1D12  1F        .db $1f		
 1D13  1F        .db $1f		
-1D14  1F        .db $1f		
+1D14  1F        .db $1f
+
+; Other data
 1D15  20        .db $20		
 1D16  20        .db $20		
 1D17  08        .db $08		
@@ -1986,11 +2054,16 @@
 1D31  0D        .db $0d		
 1D32  18        .db $18		
 1D33  18        .db $18		
+1D34  09        .db $09		
+1D35  16        .db $16		
+1D36  20        .db $20		
+1D37  20        .db $20
+1D38  17        .db $17		
+1D39  05        .db $05		
+1D3A  04        .db $04		
+1D3B  05        .db $05		
+1D3C  16        .db $16
 
-1D34  09 16     ora #$16	
-1D36  20 20 17  jsr $1720	
-1D39  05 04     ora $04		
-1D3B  05 16     ora $16		
 1D3D  A0 00     ldy #$00	
 1D3F  EE 2D 10  inc $102d	
 1D42  AD 2D 10  lda $102d	
@@ -2029,7 +2102,7 @@
 1D98  C8        iny 		
 1D99  C0 0F     cpy #$0f	
 1D9B  D0 E2     bne $1d7f	
-1D9D  60        rts 		
+1D9D  60        rts	
 
 1D9E  AD 18 10  lda $1018	
 1DA1  38        sec 		
