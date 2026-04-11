@@ -30,7 +30,6 @@
 1015  00        .db $00		
 1016  00        .db $00		
 1017  00        .db $00	
-
 1018  00        .db $00		
 1019  00        .db $00		
 101A  00        .db $00		
@@ -38,7 +37,8 @@
 101C  00        .db $00		
 101D  00        .db $00		
 101E  00        .db $00		
-101F  00        .db $00		
+101F  00        .db $00
+
 1020  01        .db $01
 
 1021  00        .db $00		
@@ -55,23 +55,24 @@
 
 102C  00        .db $00	    ; Player horizontal position. Range: 0x1 to 0x14
 102D  00        .db $00		; Player vertical position. Range: 0x10 to 0x14
-102E  00        .db $00		
+
+102E  00        .db $00		; Cycles between 2 and 6
 102F  00        .db $00		
 1030  00        .db $00		
-1031  00        .db $00		
-1032  00        .db $00		
+1031  00        .db $00		; Always 4?
+1032  00        .db $00		; Always 32?
 1033  01        .db $01		
 1034  00        .db $00		; Movement direction. Byte bits represent move
                             ; direction as down left up right respectively i.e.
 							; 0b1=0x1 -> right movement whereas 0b10=0x2 -> up
 							; movement.
 1035  00        .db $00		; Set to 1 while shoot button is pressed
-1036  00        .db $00		
+1036  00        .db $00		; Set to 1 when player is dead
 1037  00        .db $00	    ; Player lives	
 1038  00        .db $00		; Level #
 1039  00        .db $00		; Set to 1 if in level transition
 
-103A  14        .db $14		; # of levels maybe?
+103A  14        .db $14		; Max snake length
 103B  0C        .db $0c		; Length of snake at level 1
 103C  0E        .db $0e		; at level 2
 103D  04        .db $04	    ; at level 3
@@ -87,7 +88,9 @@
 1046  01        .db $01		
 1047  00        .db $00		
 1048  01        .db $01		
-1049  00        .db $00		
+1049  00        .db $00	
+
+; Snake color at each level
 104A  04        .db $04		
 104B  07        .db $07		
 104C  02        .db $02		
@@ -95,7 +98,9 @@
 104E  01        .db $01	
 104F  04        .db $04		
 1050  02        .db $02		
-1051  06        .db $06		
+1051  06        .db $06
+
+; Mushroom color at each level
 1052  06        .db $06		
 1053  02        .db $02		
 1054  01        .db $01		
@@ -105,6 +110,7 @@
 1058  04        .db $04		
 1059  02        .db $02
 
+; Something at each level
 105A  01        .db $01		
 105B  04        .db $04		
 105C  05        .db $05		
@@ -112,11 +118,13 @@
 105E  02        .db $02		
 105F  03        .db $03		
 1060  01        .db $01		
-1061  06        .db $06		
+1061  06        .db $06
+
 1062  00        .db $00		
-1063  00        .db $00		
-1064  00        .db $00		
-1065  00        .db $00		
+1063  00        .db $00
+
+1064  00        .db $00     ; Current snake color code
+1065  00        .db $00		; Current muchroom color code
 
 ; Actual code starts here
 1066  A9 00     lda #$00    ; 0 can set ports A and B for input
@@ -128,79 +136,80 @@
 1075  8D 89 02  sta $0289	; .
 1078  A9 EA     lda #$ea	; Enables RUN/STOP and RESTORE keys
 107A  8D 28 03  sta $0328	; .
-107D  A9 C1     lda #$c1	; 
-107F  8D 18 03  sta $0318	
+107D  A9 C1     lda #$c1	; Changes the NMI interrupt vector
+107F  8D 18 03  sta $0318	; .
 1082  20 88 12  jsr $1288	
 1085  A9 01     lda #$01	
 1087  8D 33 10  sta $1033	
 108A  8D CD 12  sta $12cd
 
 ; Game jumps here after death
-108D  A9 00     lda #$00	; Clear A in preperation for playing a sound
-108F  09 60     ora #$60	; Setting high bits of 900e plays a sound
-1091  8D 0E 90  sta $900e	; Play death sound
+108D  A9 00     lda #$00	; Clear 0 to later modify its high byte
+108F  09 60     ora #$60	; Corresponds to blue color
+1091  8D 0E 90  sta $900e	; Set auxillary color to blue
 1094  A0 00     ldy #$00	; Initialize index register to loop over game data
-1096  A9 00     lda #$00	; Sets game data with 0s
-1098  99 18 10  sta $1018,y	; 0s out some game data
-109B  C8        iny 		; .
-109C  C0 05     cpy #$05	; Will keep clearing until 6 variables have been 0'd
-109E  D0 F8     bne $1098	; .
-10A0  A0 00     ldy #$00	; Clear
-10A2  8C 38 10  sty $1038	
-10A5  B9 4A 10  lda $104a,y	
-10A8  8D 64 10  sta $1064	
-10AB  B9 52 10  lda $1052,y	
-10AE  8D 65 10  sta $1065	
-10B1  A0 04     ldy #$04	
-10B3  A9 00     lda #$00	
-10B5  20 4C 13  jsr $134c	
+1096  A9 00     lda #$00	; Clear game data
+1098  99 18 10  sta $1018,y	; .
+109B  C8        iny 		; Move to next value to clear
+109C  C0 05     cpy #$05	; Clear 6 variables in total
+109E  D0 F8     bne $1098	; Jump back to start of loop if not done
+10A0  A0 00     ldy #$00	; Reset level to 0 cuz player died or didn't start
+10A2  8C 38 10  sty $1038	; .
+10A5  B9 4A 10  lda $104a,y	; Load snake color
+10A8  8D 64 10  sta $1064	; Store it for later use
+10AB  B9 52 10  lda $1052,y	; Load mushroom color code
+10AE  8D 65 10  sta $1065	; Store it for later use
+10B1  A0 04     ldy #$04	; Set entire screen color mem to purple
+10B3  A9 00     lda #$00	; Set entire screen code mem to empty chars
+10B5  20 4C 13  jsr $134c	; Call function that does the above
 10B8  20 71 14  jsr $1471	
 10BB  20 7E 14  jsr $147e	
-10BE  20 3D 1D  jsr $1d3d	
-10C1  A9 12     lda #$12	
-10C3  8D 09 1A  sta $1a09	
-10C6  A9 0B     lda #$0b	
-10C8  8D 0A 1A  sta $1a0a	
-10CB  A9 06     lda #$06	
-10CD  09 60     ora #$60	
-10CF  8D 0E 90  sta $900e	
+10BE  20 3D 1D  jsr $1d3d	; Print main menu screen
+10C1  A9 12     lda #$12	; Show spider at vertical pos 12
+10C3  8D 09 1A  sta $1a09	; Set spider vertical position
+10C6  A9 0B     lda #$0b	; Show spider at horizontal pos 11
+10C8  8D 0A 1A  sta $1a0a	; Set spider horizontal position
+10CB  A9 06     lda #$06	; 0x6 in low byte means set the loudness to 6
+10CD  09 60     ora #$60	; High byte corresponds to auxillary color
+10CF  8D 0E 90  sta $900e	; Set aux color to blue and loudness to 6
 10D2  20 90 1A  jsr $1a90	
 10D5  20 D8 1C  jsr $1cd8	
-10D8  20 3D 1D  jsr $1d3d	
+10D8  20 3D 1D  jsr $1d3d	; Print main menu screen in case the spider is in it
 10DB  20 14 13  jsr $1314	
-10DE  20 75 13  jsr $1375	   ; Determines whether tape button is held down
-10E1  AD 35 10  lda $1035      ; Check if tape button is held down	
-10E4  C9 01     cmp #$01	   ; .
-10E6  D0 EA     bne $10d2	   
-10E8  20 E4 11  jsr $11e4	
-10EB  A9 03     lda #$03	
-10ED  8D 37 10  sta $1037	
-10F0  A9 01     lda #$01	
-10F2  8D 38 10  sta $1038	
+10DE  20 75 13  jsr $1375	; Determines whether shoot button is held down
+10E1  AD 35 10  lda $1035   ; Check if shoot button is held down	
+10E4  C9 01     cmp #$01	; .
+10E6  D0 EA     bne $10d2	; If not, keep waiting
+10E8  20 E4 11  jsr $11e4	; Otherwise, start the game
+10EB  A9 03     lda #$03	; Number of lives to start with
+10ED  8D 37 10  sta $1037	; Store the number of lives
+10F0  A9 01     lda #$01	; Level to start with
+10F2  8D 38 10  sta $1038	; Store the level
+
 ; Program jumps back here at the end of this subroutine
-10F5  AC 38 10  ldy $1038	
-10F8  B9 4A 10  lda $104a,y	
-10FB  8D 64 10  sta $1064	
-10FE  B9 52 10  lda $1052,y	
-1101  8D 65 10  sta $1065	
-1104  A0 04     ldy #$04	
-1106  A9 00     lda #$00	
-1108  20 4C 13  jsr $134c	
+10F5  AC 38 10  ldy $1038	; Load level into y
+10F8  B9 4A 10  lda $104a,y	; Load snake color
+10FB  8D 64 10  sta $1064	; Store it for later use
+10FE  B9 52 10  lda $1052,y	; Load mushroom color
+1101  8D 65 10  sta $1065	; Store it for later use
+1104  A0 04     ldy #$04	; 4 corresponds to purple color code
+1106  A9 00     lda #$00	; 0 corresponds to empty custom char
+1108  20 4C 13  jsr $134c	; Set entire screen to empty chars and purple color
 110B  20 71 14  jsr $1471	
 110E  20 7E 14  jsr $147e	
-1111  A9 00     lda #$00	
-1113  8D 36 10  sta $1036	
-1116  8D 39 10  sta $1039	
+1111  A9 00     lda #$00	; Set player status to alive
+1113  8D 36 10  sta $1036	; .
+1116  8D 39 10  sta $1039	; Set level transition status to false
 1119  8D 62 10  sta $1062	
-111C  AC 38 10  ldy $1038	
-111F  B9 42 10  lda $1042,y	
-1122  8D 63 10  sta $1063	
-1125  A0 00     ldy #$00	
-1127  A9 FF     lda #$ff	
-1129  99 FF 15  sta $15ff,y	
-112C  C8        iny 		
-112D  C0 04     cpy #$04	
-112F  D0 F6     bne $1127	
+111C  AC 38 10  ldy $1038	; Load level #
+111F  B9 42 10  lda $1042,y	; Load something about the level
+1122  8D 63 10  sta $1063	; Store it elsewhere
+1125  A0 00     ldy #$00	; Clear Y
+1127  A9 FF     lda #$ff	; 
+1129  99 FF 15  sta $15ff,y	; Clear variable
+112C  C8        iny 		; Move to next variable
+112D  C0 04     cpy #$04	; Clear 4 variables
+112F  D0 F6     bne $1127	; Loop back up until done clearing variables
 1131  20 13 18  jsr $1813	
 1134  A9 00     lda #$00	
 1136  8D 0B 1A  sta $1a0b	
@@ -298,91 +307,93 @@
 1216  8D 0F 90  sta $900f	
 1219  60        rts 
 
-121A  12        .db ___X__X_	    
-121B  13        .db ___X__XX	
-121C  12        .db ___X__X_	
-121D  13        .db ___X__XX	
-121E  12        .db ___X__X_	
-121F  13        .db ___X__XX	
-1220  14        .db ___X_X__	
-1221  14        .db ___X_X__
+; Player death animation
+121A  12        .db $12
+121B  13        .db $13		
+121C  12        .db $12		
+121D  13        .db $13		
+121E  12        .db $12		
+121F  13        .db $13		
+1220  14        .db $14		
+1221  14        .db $14
+1222  14        .db $14		
+1223  15        .db $15		
+1224  14        .db $14		
+1225  15        .db $15		
+1226  14        .db $14		
+1227  15        .db $15		
+1228  14        .db $14		
+1229  15        .db $15
 
-1222  14        .db ___X_X__	
-1223  15        .db ___X_X_X	
-1224  14        .db ___X_X__	
-1225  15        .db ___X_X_X	
-1226  14        .db ___X_X__	
-1227  15        .db ___X_X_X	
-1228  14        .db ___X_X__	
-1229  15        .db ___X_X_X
+; Death audio
+122A  DD        .db $dd		
+122B  DB        .db $db		
+122C  D9        .db $d9		
+122D  B7        .db $b7		
+122E  B4        .db $b4		
+122F  AF        .db $af		
+1230  D6        .db $d6		
+1231  D6        .db $d6
+1232  D6        .db $d6		
+1233  00        .db $00		
+1234  D6        .db $d6		
+1235  00        .db $00		
+1236  D6        .db $d6		
+1237  00        .db $00		
+1238  D6        .db $d6		
+1239  00        .db $00
 
-122A  DD        .db XX_XXX_X	
-122B  DB        .db XX_XX_XX	
-122C  D9        .db XX_XX__X	
-122D  B7        .db X_XX_XXX	
-122E  B4        .db X_XX_X__	
-122F  AF        .db X_X_XXXX	
-1230  D6        .db XX_X_XX_	
-1231  D6        .db XX_X_XX_
-
-1232  D6        .db XX_X_XX_	
-1233  00        .db ________	
-1234  D6        .db XX_X_XX_	
-1235  00        .db ________	
-1236  D6        .db XX_X_XX_	
-1237  00        .db ________	
-1238  D6        .db XX_X_XX_	
-1239  00        .db ________
-
-123A  00        .db $00		
+123A  00        .db $00		; Animation frame # for death animation
 123B  00        .db $00	
 
-; Handles getting hit and decrementing lives
-123C  20 D8 1C  jsr $1cd8	
+; Handles getting hit, decrementing lives, playing hit animation+sound
+123C  20 D8 1C  jsr $1cd8	; Stop any audio that is currently playing
 123F  20 0C 1A  jsr $1a0c	
 1242  20 7D 1A  jsr $1a7d	
-1245  CE 37 10  dec $1037	
+1245  CE 37 10  dec $1037	; Remove a life
 1248  20 71 14  jsr $1471	
-124B  A9 00     lda #$00	
-124D  8D 3A 12  sta $123a	
-1250  AC 3A 12  ldy $123a	
-1253  B9 1A 12  lda $121a,y	
-1256  8D 85 15  sta $1585	
-1259  20 86 15  jsr $1586	
-125C  AC 3A 12  ldy $123a	
-125F  B9 2A 12  lda $122a,y	
-1262  8D 0A 90  sta $900a	
+124B  A9 00     lda #$00	; Used to clear animation frame #
+124D  8D 3A 12  sta $123a   ; Ensure animation starts from the top
+1250  AC 3A 12  ldy $123a	; Load death animation frame number
+1253  B9 1A 12  lda $121a,y	; Load the character code for current animation step
+1256  8D 85 15  sta $1585	; Pass it to subroutine 1586
+1259  20 86 15  jsr $1586	; Update player sprite with correct animation frame
+125C  AC 3A 12  ldy $123a	; Load the animation frame step
+125F  B9 2A 12  lda $122a,y	; Load the corresponding audio to play
+1262  8D 0A 90  sta $900a	; Play the audio
 1265  20 23 13  jsr $1323	
-1268  EE 3A 12  inc $123a	
-126B  AD 3A 12  lda $123a	
-126E  C9 10     cmp #$10	
-1270  D0 DE     bne $1250	
+1268  EE 3A 12  inc $123a	; Move to next animation frame
+126B  AD 3A 12  lda $123a	; Load current animation frame #
+126E  C9 10     cmp #$10	; Check if we're done the animation yet
+1270  D0 DE     bne $1250	; If not, go back to start
 1272  20 D8 1C  jsr $1cd8	
 1275  20 38 13  jsr $1338	
 1278  AD 37 10  lda $1037	; Check if player ran out of lives
 127B  C9 00     cmp #$00	; .
 127D  D0 03     bne $1282	
-127F  4C 85 12  jmp $1285	; Jumps to end of subroutine
-1282  4C F5 10  jmp $10f5	; Handles death
+127F  4C 85 12  jmp $1285	; 
+1282  4C F5 10  jmp $10f5	; Return to main function if still alive
 1285  4C 8D 10  jmp $108d   ; 
 
 1288  78        sei 		; Disable interrupts
-1289  A9 DF     lda #$df	; 
-128B  8D 14 03  sta $0314	
-128E  A0 12     ldy #$12	
-1290  8C 15 03  sty $0315	
-1293  AD E4 ED  lda $ede4	
-1296  C9 0C     cmp #$0c	
-1298  D0 16     bne $12b0	
+1289  A9 DF     lda #$df	; Change the hardware interrupt to use custom code
+128B  8D 14 03  sta $0314	; .
+128E  A0 12     ldy #$12	; .
+1290  8C 15 03  sty $0315	; .
+1293  AD E4 ED  lda $ede4	; Load initial values for video chip registers
+1296  C9 0C     cmp #$0c	; Check if 2nd and third bits are on
+1298  D0 16     bne $12b0	; If not, skip some code
+
 129A  A9 32     lda #$32	
 129C  8D 32 10  sta $1032	
 129F  A9 04     lda #$04	
 12A1  8D 31 10  sta $1031	
-12A4  A2 86     ldx #$86	
-12A6  8E 24 91  stx $9124	
+12A4  A2 86     ldx #$86	; Does something to the low bytes of timer 1
+12A6  8E 24 91  stx $9124	; .
 12A9  A2 56     ldx #$56	
 12AB  A9 82     lda #$82	
-12AD  4C C3 12  jmp $12c3	
+12AD  4C C3 12  jmp $12c3
+
 12B0  A9 3C     lda #$3c	
 12B2  8D 32 10  sta $1032	
 12B5  A9 06     lda #$06	
@@ -391,90 +402,68 @@
 12BC  8E 24 91  stx $9124	
 12BF  A2 42     ldx #$42	
 12C1  A9 75     lda #$75	
-12C3  CD 04 90  cmp $9004	
-12C6  D0 FB     bne $12c3	
-12C8  8E 25 91  stx $9125	
-12CB  58        cli 		
+12C3  CD 04 90  cmp $9004  ; Check raster value (whatever that means)
+
+12C6  D0 FB     bne $12c3  ; Loop until raster value is not 0
+12C8  8E 25 91  stx $9125  ; Set the high bytes of timer 1
+12CB  58        cli 	   ; Enable interrupts
 12CC  60        rts
 
 12CD  00        .db $00		
-12CE  00        .db $00		
-12CF  00        .db $00		
-12D0  0A        .db $0a		
-12D1  7A        .db $7a		
-12D2  0A        .db $0a		
-12D3  08        .db $08		
-12D4  08        .db $08		
-12D5  08        .db $08		
-12D6  08        .db $08		
-12D7  08        .db $08		
-12D8  C8        .db $c8		
-12D9  08        .db $08		
-12DA  08        .db $08		
-12DB  E8        .db $e8		
-12DC  08        .db $08		
-12DD  08        .db $08		
-12DE  E8        .db $e8		
-12DF  EE        .db $ee		
-12E0  30        .db $30		
-12E1  10        .db $10		
-12E2  AD        .db $ad		
-12E3  30        .db $30		
-12E4  10        .db $10		
-12E5  29        .db $29		
-12E6  01        .db $01		
-12E7  8D        .db $8d		
-12E8  30        .db $30		
-12E9  10        .db $10		
-12EA  AD        .db $ad		
-12EB  CD        .db $cd		
-12EC  12        .db $12		
-12ED  29        .db $29		
-12EE  07        .db $07		
-12EF  C9        .db $c9		
-12F0  00        .db $00		
-12F1  F0        .db $f0		
-12F2  0A        .db $0a		
-12F3  A8        .db $a8		
-12F4  B9        .db $b9		
-12F5  CF        .db $cf		
-12F6  12        .db $12		
-12F7  8D        .db $8d		
-12F8  0F        .db $0f		
-12F9  90        .db $90		
-12FA  EE        .db $ee		
-12FB  CD        .db $cd		
-12FC  12        .db $12		
-12FD  AD        .db $ad		
-12FE  CE        .db $ce		
-12FF  12        .db $12		
-1300  29        .db $29		
-1301  07        .db $07		
-1302  C9        .db $c9		
-1303  00        .db $00		
-1304  F0        .db $f0		
-1305  0A        .db $0a		
-1306  A8        .db $a8		
-1307  B9        .db $b9		
-1308  D7        .db $d7		
-1309  12        .db $12		
-130A  8D        .db $8d		
-130B  0F        .db $0f		
-130C  90        .db $90		
-130D  EE        .db $ee		
-130E  CE        .db $ce		
-130F  12        .db $12		
-1310  4C        .db $4c		
-1311  BF        .db $bf		
-1312  EA        .db $ea		
-1313  00        .db $00	
+12CE  00        .db $00
 
-1314  AD 30 10  lda $1030	
-1317  CD 13 13  cmp $1313	
-131A  F0 F8     beq $1314	
-131C  AD 30 10  lda $1030	
-131F  8D 13 13  sta $1313	
-1322  60        rts 		
+; Values for screen and border color register
+; Bits 7-4 background color
+; bit 3 inverse switch (inverts color if on, im guessing)
+; bits 0-2 border color
+12CF  00        .db ________	
+12D0  0A        .db ____X_X_	
+12D1  7A        .db _XXXX_X_	
+12D2  0A        .db ____X_X_	
+12D3  08        .db ____X___	
+12D4  08        .db ____X___	
+12D5  08        .db ____X___	
+12D6  08        .db ____X___	
+12D7  08        .db ____X___	
+12D8  C8        .db XX__X___	
+12D9  08        .db ____X___	
+12DA  08        .db ____X___	
+12DB  E8        .db XXX_X___	
+12DC  08        .db ____X___	
+12DD  08        .db ____X___	
+12DE  E8        .db XXX_X___
+
+; Custom hardware interrupt handler
+12DF  EE 30 10  inc $1030	
+12E2  AD 30 10  lda $1030	
+12E5  29 01     and #$01	
+12E7  8D 30 10  sta $1030	
+12EA  AD CD 12  lda $12cd	
+12ED  29 07     and #$07	
+12EF  C9 00     cmp #$00	
+12F1  F0 0A     beq $12fd	
+12F3  A8        tay 		
+12F4  B9 CF 12  lda $12cf,y	
+12F7  8D 0F 90  sta $900f	; Update screen color to something?
+12FA  EE CD 12  inc $12cd	
+12FD  AD CE 12  lda $12ce	
+1300  29 07     and #$07	
+1302  C9 00     cmp #$00	
+1304  F0 0A     beq $1310	
+1306  A8        tay 		
+1307  B9 D7 12  lda $12d7,y	
+130A  8D 0F 90  sta $900f	
+130D  EE CE 12  inc $12ce	
+1310  4C BF EA  jmp $eabf	; Jump to system interrupt handler
+
+1313  00        .db $00		
+
+1314  AD 30 10  lda $1030	; Compare 1313 with 1030
+1317  CD 13 13  cmp $1313	; .
+131A  F0 F8     beq $1314	; If they're the same, keep checking
+131C  AD 30 10  lda $1030	; Otherwise update 1313 to 1030
+131F  8D 13 13  sta $1313	; .
+1322  60        rts		
 
 1323  A9 00     lda #$00	
 1325  8D 2C 10  sta $102c	
@@ -496,25 +485,27 @@
 1349  D0 F2     bne $133d	
 134B  60        rts 		
 
-134C  A2 00     ldx #$00	
-134E  8D 2C 10  sta $102c	
-1351  98        tya 		
-1352  9D 00 96  sta $9600,x	
-1355  9D 00 97  sta $9700,x	
-1358  AD 2C 10  lda $102c	
-135B  9D 00 1E  sta $1e00,x	
-135E  9D 00 1F  sta $1f00,x	
-1361  E8        inx 		
-1362  D0 EA     bne $134e	
+; Sets every screen code to A and every screen color to Y
+134C  A2 00     ldx #$00	; Clear X in preperation of loop
+134E  8D 2C 10  sta $102c	; Save desired screen code to mem for later
+1351  98        tya 		; Load desired color into A
+1352  9D 00 96  sta $9600,x	; Set entirety of color mem to the desired color
+1355  9D 00 97  sta $9700,x	; .
+1358  AD 2C 10  lda $102c	; Load desired screen code 
+135B  9D 00 1E  sta $1e00,x	; Set entirety of screen code mem to desired value
+135E  9D 00 1F  sta $1f00,x	; .
+1361  E8        inx 		; Move onto next variable
+1362  D0 EA     bne $134e	; Don't stop until value overflows i.e. until screen
+                            ; mem has been entirely replaced
 1364  60        rts 		
 
-1365  AD 33 10  lda $1033	
-1368  F0 05     beq $136f	
-136A  0A        asl a		
-136B  F0 04     beq $1371	
-136D  90 02     bcc $1371	
-136F  49 1D     eor #$1d	
-1371  8D 33 10  sta $1033	
+1365  AD 33 10  lda $1033	; Load some info bout the game
+1368  F0 05     beq $136f	; If it's zero, skip some code
+136A  0A        asl a		; Shift it A times
+136B  F0 04     beq $1371	; If it's zero, skip to end
+136D  90 02     bcc $1371	; or if it overflowed, skip to end
+136F  49 1D     eor #$1d	; Evil bit manipulation of doom??
+1371  8D 33 10  sta $1033	; Store it back to value
 1374  60        rts 		
 
 1375  A9 00     lda #$00	
@@ -722,15 +713,15 @@
 
 14AC  16        .db $16		; Player character row #
 14AD  0A        .db $0a		; Player character column #
-14AE  00        .db $00		; Just set to 1 for some reason
+14AE  00        .db $00		; Some status variable?
 14AF  00        .db $00		; Set to 1 while fire button held down
 14B0  00        .db $00		; Set to 3 after first bullet fired, then decrements
                             ; until 0 then back to 3
 
 
-14B1  A9 00     lda #$00	
-14B3  8D AE 14  sta $14ae	
-14B6  A9 01     lda #$01	
+14B1  A9 00     lda #$00
+14B3  8D AE 14  sta $14ae
+14B6  A9 01     lda #$01
 14B8  8D 85 15  sta $1585	
 14BB  20 86 15  jsr $1586	
 14BE  AD 35 10  lda $1035	
@@ -759,7 +750,7 @@
 14F7  18        clc 		
 14F8  69 C9     adc #$c9	
 14FA  8D 0B 90  sta $900b	
-14FD  AD AC 14  lda $14ac	
+14FD  AD AC 14  lda $14ac	; 
 1500  99 FF 15  sta $15ff,y	
 1503  AD AD 14  lda $14ad	
 1506  99 FB 15  sta $15fb,y	
@@ -780,28 +771,28 @@
 152B  AD AD 14  lda $14ad	
 152E  C9 15     cmp #$15	
 1530  F0 09     beq $153b	
-1532  20 B1 15  jsr $15b1	
+1532  20 B1 15  jsr $15b1	; Sync player positions
 1535  EE AD 14  inc $14ad	
 1538  20 BE 15  jsr $15be	
 153B  4C 77 15  jmp $1577	
 153E  AD AC 14  lda $14ac	
 1541  C9 0F     cmp #$0f	
 1543  F0 09     beq $154e	
-1545  20 B1 15  jsr $15b1	
+1545  20 B1 15  jsr $15b1	; Sync player positions
 1548  CE AC 14  dec $14ac	
 154B  20 BE 15  jsr $15be	
 154E  4C 77 15  jmp $1577	
 1551  AD AD 14  lda $14ad	
 1554  C9 00     cmp #$00	
 1556  F0 09     beq $1561	
-1558  20 B1 15  jsr $15b1	
+1558  20 B1 15  jsr $15b1	; Sync player positions
 155B  CE AD 14  dec $14ad	
 155E  20 BE 15  jsr $15be	
 1561  4C 77 15  jmp $1577	
 1564  AD AC 14  lda $14ac	
 1567  C9 15     cmp #$15	
 1569  F0 09     beq $1574	
-156B  20 B1 15  jsr $15b1	
+156B  20 B1 15  jsr $15b1	; Sync player positions
 156E  EE AC 14  inc $14ac	
 1571  20 BE 15  jsr $15be	
 1574  4C 77 15  jmp $1577	
@@ -812,57 +803,36 @@
 1581  20 86 15  jsr $1586	
 1584  60        rts	
 
-; Could be a subroutine but is never called
-1585  00        .db $00		
-1586  AC        .db $ac		
-1587  AC        .db $ac		
-1588  14        .db $14		
-1589  B9        .db $b9		
-158A  E7        .db $e7		
-158B  1C        .db $1c		
-158C  85        .db $85		
-158D  FB        .db $fb		
-158E  85        .db $85		
-158F  FD        .db $fd		
-1590  B9        .db $b9		
-1591  FE        .db $fe		
-1592  1C        .db $1c		
-1593  85        .db $85		
-1594  FC        .db $fc		
-1595  18        .db $18		
-1596  69        .db $69		
-1597  78        .db $78		
-1598  85        .db $85		
-1599  FE        .db $fe		
-159A  AC        .db $ac		
-159B  AD        .db $ad		
-159C  14        .db $14		
-159D  A2        .db $a2		
-159E  00        .db $00		
-159F  AD        .db $ad		
-15A0  AE        .db $ae		
-15A1  14        .db $14		
-15A2  C9        .db $c9		
-15A3  01        .db $01		
-15A4  D0        .db $d0		
-15A5  03        .db $03		
-15A6  AE        .db $ae		
-15A7  85        .db $85		
-15A8  15        .db $15		
-15A9  8A        .db $8a		
-15AA  91        .db $91		
-15AB  FB        .db $fb		
-15AC  A9        .db $a9		
-15AD  01        .db $01		
-15AE  91        .db $91		
-15AF  FD        .db $fd		
-15B0  60        .db $60		
+1585  00        .db $00    ; Screen code to print in subroutine 1586
 
+; Updates
+1586  AC AC 14  ldy $14ac   ; Get player horizontal pos
+1589  B9 E7 1C  lda $1ce7,y	; Get low byte for yth row of screen
+158C  85 FB     sta $fb	    ; Store in zero-page for later use
+158E  85 FD     sta $fd	    ; .
+1590  B9 FE 1C  lda $1cfe,y	; Load high byte of yth row of screen
+1593  85 FC     sta $fc		; Store for later use
+1595  18        clc 		; Clear carry bit so it doesn't mess up calculations
+1596  69 78     adc #$78	; Get high byte of corresponding color mem address
+1598  85 FE     sta $fe		; Store for later use
+159A  AC AD 14  ldy $14ad	; Load player character's column position
+159D  A2 00     ldx #$00	
+159F  AD AE 14  lda $14ae	; Check if player moved
+15A2  C9 01     cmp #$01	; .
+15A4  D0 03     bne $15a9	; If they didn't, clear the player character
+15A6  AE 85 15  ldx $1585	; O.w. use the screen code specified in 1585
+15A9  8A        txa 		; Transfer char code into A to store in mem
+15AA  91 FB     sta ($fb),y	; Update screen with new char code
+15AC  A9 01     lda #$01	; Update color to black
+15AE  91 FD     sta ($fd),y	; .
+15B0  60        rts
 
-15B1  AD AD 14  lda $14ad	
-15B4  8D 2C 10  sta $102c	
-15B7  AD AC 14  lda $14ac	
-15BA  8D 2D 10  sta $102d	
+; This subroutine synchronizes the player info at 14ad and 14ac with the player 
+; data at 102c and 102d
+15B1  AD AD 14  lda $14ad	; Load player horizontal pos
+15B4  8D 2C 10  sta $102c	; Store it elsewhere
+15B7  AD AC 14  lda $14ac	; Load player vertical pos
+15BA  8D 2D 10  sta $102d	; Store it elsewhere
 15BD  60        rts 		
 
 
@@ -893,18 +863,20 @@
 15F2  30 01     bmi $15f5	
 15F4  60        rts 		
 
-15F5  A9 01     lda #$01	
-15F7  8D 36 10  sta $1036	
+; Kill player
+15F5  A9 01     lda #$01	; 1 signifies player is dead
+15F7  8D 36 10  sta $1036	; Kill player
 15FA  60        rts 		
 
 15FB  00        .db $00		
 15FC  00        .db $00		
 15FD  00        .db $00		
-15FE  00        .db $00		
-15FF  00        .db $00		
+15FE  00        .db $00
+
+15FF  00        .db $00	
 1600  00        .db $00		
 1601  00        .db $00		
-1602  00        .db $00		
+1602  00        .db $00
 1603  00        .db $00				
 
 1604  A9 00     lda #$00	
@@ -1073,7 +1045,7 @@
 1797  91 FD     sta ($fd),y	
 1799  60        rts 		
 
-; Snake body offsets
+; Snake body part column position (FF if dead)
 179A  00        .db $00		
 179B  00        .db $00		
 179C  00        .db $00		
@@ -1095,6 +1067,7 @@
 17AC  00        .db $00		
 17AD  00        .db $00	
 
+; Snake body part movement direction
 17AE  00        .db $00		
 17AF  00        .db $00		
 17B0  00        .db $00		
@@ -1137,18 +1110,18 @@
 17D4  00        .db $00		
 17D5  00        .db $00
 
+; Snake body part row position
 17D6  00        .db $00		
 17D7  00        .db $00		
 17D8  00        .db $00		
 17D9  00        .db $00		
 17DA  00        .db $00	
-
 17DB  00        .db $00		
 17DC  00        .db $00		
 17DD  00        .db $00		
 17DE  00        .db $00		
 17DF  00        .db $00		
-17E0  00        .db $00		
+17E0  00        .db $00
 17E1  00        .db $00		
 17E2  00        .db $00		
 17E3  00        .db $00		
@@ -1159,13 +1132,13 @@
 17E8  00        .db $00		
 17E9  00        .db $00		
 
+; Is snake head? Snake head is identified by a 1. everything else is a normal
+; body part
 17EA  00        .db $00		
 17EB  00        .db $00		
 17EC  00        .db $00		
 17ED  00        .db $00	
-
 17EE  00        .db $00
-
 17EF  00        .db $00		
 17F0  00        .db $00		
 17F1  00        .db $00		
@@ -1180,7 +1153,9 @@
 17FA  00        .db $00		
 17FB  00        .db $00		
 17FC  00        .db $00		
-17FD  00        .db $00		
+17FD  00        .db $00
+
+; Always 0?
 17FE  00        .db $00		
 17FF  00        .db $00		
 1800  00        .db $00		
@@ -1202,36 +1177,35 @@
 1810  00        .db $00		
 1811  00        .db $00
 
-; First set to 4
 ; 
 1812  00        .db $00		
 
 1813  A0 00     ldy #$00	
-1815  A9 FF     lda #$ff	
-1817  99 9A 17  sta $179a,y	
-181A  A9 01     lda #$01	
-181C  99 AE 17  sta $17ae,y	
-181F  A9 08     lda #$08	
+1815  A9 FF     lda #$ff	; 0xff means snake body at this point is dead
+1817  99 9A 17  sta $179a,y	; Kill snake body at this point
+181A  A9 01     lda #$01	; Corresponds to right movement
+181C  99 AE 17  sta $17ae,y	; Set movement direction to right
+181F  A9 08     lda #$08	; 
 1821  99 C2 17  sta $17c2,y	
-1824  A9 02     lda #$02	
-1826  99 D6 17  sta $17d6,y	
-1829  A9 00     lda #$00	
-182B  99 EA 17  sta $17ea,y	
-182E  99 FE 17  sta $17fe,y	
-1831  C8        iny 		
-1832  C0 14     cpy #$14	
-1834  D0 DF     bne $1815	
-1836  AC 38 10  ldy $1038	
-1839  B9 5A 10  lda $105a,y	
+1824  A9 02     lda #$02	; Spawn snake in second row
+1826  99 D6 17  sta $17d6,y	; Set snake body row positions all to 2
+1829  A9 00     lda #$00	; Clear some variables
+182B  99 EA 17  sta $17ea,y	; Clear snake head status
+182E  99 FE 17  sta $17fe,y	; Clear always 0 numbers?
+1831  C8        iny 		; Move to next variable
+1832  C0 14     cpy #$14	; 14 values in each set to initialize
+1834  D0 DF     bne $1815	; Keep initializing until the 14 variables are done
+1836  AC 38 10  ldy $1038	; Load level #
+1839  B9 5A 10  lda $105a,y	; 
 183C  8D 12 18  sta $1812	
-183F  B9 3A 10  lda $103a,y	
-1842  A8        tay 		
-1843  98        tya 		
-1844  99 9A 17  sta $179a,y	
-1847  88        dey 		
-1848  C0 FF     cpy #$ff	; Loop until overflow
+183F  B9 3A 10  lda $103a,y	; Get max snake length
+1842  A8        tay 		; Y will be used to go through the whole snake body
+1843  98        tya 		; A will be the column position for each body part
+1844  99 9A 17  sta $179a,y	; Set snake body part column position
+1847  88        dey 		; Decrement y
+1848  C0 FF     cpy #$ff	; Loop backwards through the snake body
 184A  D0 F7     bne $1843	; .
-184C  AC 38 10  ldy $1038	; Load level
+184C  AC 38 10  ldy $1038	; Load level #
 184F  B9 3A 10  lda $103a,y	; Load length of snake at this level
 1852  A8        tay 		; Use snake length as index
 1853  A9 01     lda #$01	; Set position of snake head
@@ -1424,44 +1398,54 @@
 19F9  91 FD     sta ($fd),y	
 19FB  60        rts 		
 
-19FC  0C        .db $0c		
-19FD  0A        .db $0a		
-19FE  0D        .db $0d		
+; Character code for spider V1
+19FC  0C        .db $0c		; Left leg
+19FD  0A        .db $0a		; Body
+19FE  0D        .db $0d     ; Right leg
+
+; Character codes for spider V2
 19FF  0E        .db $0e		
 1A00  0B        .db $0b		
-1A01  0F        .db $0f		
+1A01  0F        .db $0f
+
+; Spider color code for spider V1
 1A02  03        .db $03		
 1A03  07        .db $07		
-1A04  03        .db $03		
-1A05  04        .db $04		
+1A04  03        .db $03
+
+; Color code for spider V2
+1A05  04        .db $04	
 1A06  02        .db $02		
-1A07  04        .db $04		
+1A07  04        .db $04
+
+; Information about spider
 1A08  00        .db $00		
-1A09  00        .db $00		
-1A0A  00        .db $00		
+1A09  00        .db $00		; Spider's vertical position
+1A0A  00        .db $00		; Spider's horizontal position
 1A0B  00        .db $00		
 
-1A0C  AC 09 1A  ldy $1a09	
-1A0F  B9 E7 1C  lda $1ce7,y	
-1A12  85 FB     sta $fb		
-1A14  85 FD     sta $fd		
-1A16  B9 FE 1C  lda $1cfe,y	
-1A19  85 FC     sta $fc		
-1A1B  18        clc 		
-1A1C  69 78     adc #$78	
-1A1E  85 FE     sta $fe		
-1A20  AC 0A 1A  ldy $1a0a	
-1A23  A2 00     ldx #$00	
+; Displays spider at position specified by 1a09 and 1a0a
+1A0C  AC 09 1A  ldy $1a09	; Load spider's vertical position
+1A0F  B9 E7 1C  lda $1ce7,y	; Get the low byte of spider's screen code address
+1A12  85 FB     sta $fb		; Store in zero page for later reference
+1A14  85 FD     sta $fd		; .
+1A16  B9 FE 1C  lda $1cfe,y	; Load high byte of spider's screen code address
+1A19  85 FC     sta $fc		; Store in zero page for later reference
+1A1B  18        clc 		; Clear carry flag so calculation isn't messed up
+1A1C  69 78     adc #$78	; Get high byte of color mem address for the spider
+1A1E  85 FE     sta $fe		; Store in zero page for later reference
+1A20  AC 0A 1A  ldy $1a0a	; Load spider's vertical position
+1A23  A2 00     ldx #$00	; Clear x. Used to iterate through spider body parts
 1A25  AD 08 1A  lda $1a08	
 1A28  C9 00     cmp #$00	
 1A2A  D0 0F     bne $1a3b	
-1A2C  20 60 1A  jsr $1a60	
-1A2F  BD FC 19  lda $19fc,x	
-1A32  91 FB     sta ($fb),y	
-1A34  C8        iny 		
-1A35  E8        inx 		
-1A36  E0 03     cpx #$03	
-1A38  D0 F2     bne $1a2c	
+1A2C  20 60 1A  jsr $1a60	; Check if player is in spider
+1A2F  BD FC 19  lda $19fc,x	; Load screen code for a spider part 
+1A32  91 FB     sta ($fb),y	; Store it at the correct spot
+1A34  C8        iny 		; Move to next screen code
+1A35  E8        inx 		; Move to next spider part
+1A36  E0 03     cpx #$03	; Spider only has three parts
+1A38  D0 F2     bne $1a2c	; Keep updating screen mem if not done yet
 1A3A  60        rts 		
 
 1A3B  C9 01     cmp #$01	
@@ -1485,22 +1469,25 @@
 1A5A  D0 F6     bne $1a52	
 1A5C  60        rts 		
 
-1A5D  4C 5D 1A  jmp $1a5d	
+; Infinite loop used for errors maybe?
+1A5D  4C 5D 1A  jmp $1a5d
+
 1A60  B1 FB     lda ($fb),y	
-1A62  C9 01     cmp #$01	
-1A64  D0 05     bne $1a6b	
-1A66  A9 01     lda #$01	
-1A68  8D 36 10  sta $1036	
+1A62  C9 01     cmp #$01	; Check if player walked into spider
+1A64  D0 05     bne $1a6b	; If not, exit this subroutine
+1A66  A9 01     lda #$01	; O.w. make player die
+1A68  8D 36 10  sta $1036	; Value of 1 at 1036 means player is dead
 1A6B  60        rts 		
 
-1A6C  A2 00     ldx #$00	
-1A6E  AC 0A 1A  ldy $1a0a	
-1A71  BD 02 1A  lda $1a02,x	
-1A74  91 FD     sta ($fd),y	
-1A76  C8        iny 		
-1A77  E8        inx 		
-1A78  E0 03     cpx #$03	
-1A7A  D0 F5     bne $1a71	
+; Updates spider color 
+1A6C  A2 00     ldx #$00	; Clear X
+1A6E  AC 0A 1A  ldy $1a0a	; Get spider horizontal position
+1A71  BD 02 1A  lda $1a02,x	; Load spider's color code
+1A74  91 FD     sta ($fd),y	; Update spider's color code
+1A76  C8        iny 		; Move to next color code position
+1A77  E8        inx 		; Move to next spider part color
+1A78  E0 03     cpx #$03	; Update all three part colors
+1A7A  D0 F5     bne $1a71	; Keep going until all are updated
 1A7C  60        rts 		
 
 1A7D  A2 00     ldx #$00	
@@ -1516,21 +1503,21 @@
 1A8E  00        .db $00		
 1A8F  00        .db $00
 
-1A90  EE 8E 1A  inc $1a8e	
+1A90  EE 8E 1A  inc $1a8e
 1A93  AD 8E 1A  lda $1a8e	
 1A96  2D 8F 1A  and $1a8f	
 1A99  8D 8E 1A  sta $1a8e	
 1A9C  C9 00     cmp #$00	
 1A9E  F0 03     beq $1aa3	
-1AA0  4C 0C 1B  jmp $1b0c	
-1AA3  AD 08 1A  lda $1a08	
-1AA6  48        pha 		
-1AA7  A9 02     lda #$02	
-1AA9  8D 08 1A  sta $1a08	
-1AAC  20 0C 1A  jsr $1a0c	
-1AAF  68        pla 		
-1AB0  8D 08 1A  sta $1a08	
-1AB3  EE 08 1A  inc $1a08	
+1AA0  4C 0C 1B  jmp $1b0c	; Don't move spider if previous calculation was 0
+1AA3  AD 08 1A  lda $1a08	; Load some info bout the spider
+1AA6  48        pha 		; Push it to stack
+1AA7  A9 02     lda #$02	; Set that info bout spider to 2
+1AA9  8D 08 1A  sta $1a08	; .
+1AAC  20 0C 1A  jsr $1a0c	; Display spider at new position
+1AAF  68        pla 		; Pop A from stack
+1AB0  8D 08 1A  sta $1a08	; Restore that information back
+1AB3  EE 08 1A  inc $1a08	; Increment said information
 1AB6  20 65 13  jsr $1365	
 1AB9  29 07     and #$07	
 1ABB  C9 00     cmp #$00	
@@ -1566,16 +1553,17 @@
 1B01  EE 09 1A  inc $1a09	
 1B04  4C 09 1B  jmp $1b09	
 1B07  A2 00     ldx #$00	
-1B09  8E 0C 90  stx $900c	
-1B0C  AD 08 1A  lda $1a08	
-1B0F  29 01     and #$01	
-1B11  8D 08 1A  sta $1a08	
-1B14  20 0C 1A  jsr $1a0c	
-1B17  AD 0B 1A  lda $1a0b	
-1B1A  C9 01     cmp #$01	
-1B1C  10 09     bpl $1b27	
-1B1E  20 6C 1A  jsr $1a6c	
-1B21  A9 07     lda #$07	
+1B09  8E 0C 90  stx $900c
+
+1B0C  AD 08 1A  lda $1a08   ; Load spider vertical position
+1B0F  29 01     and #$01    ; Mask its bits
+1B11  8D 08 1A  sta $1a08	; Save masked value
+1B14  20 0C 1A  jsr $1a0c	; Display spider at new position
+1B17  AD 0B 1A  lda $1a0b	; Load which version of spider is being shown
+1B1A  C9 01     cmp #$01	; Compare it to the normal version
+1B1C  10 09     bpl $1b27	; Check if the spider version isn't zero
+1B1E  20 6C 1A  jsr $1a6c	; Update spider color if it is
+1B21  A9 07     lda #$07
 1B23  8D 8F 1A  sta $1a8f	
 1B26  60        rts 		
 
@@ -1713,8 +1701,9 @@
 1BFF  00        .db ________
 
 ; Following data are custom sprites
-; There are 29 custom sprites
+; There are 26 custom sprites
 
+Char 00
 1C00  00        .db ________    
 1C01  00        .db ________	
 1C02  00        .db ________	
@@ -1724,6 +1713,7 @@
 1C06  00        .db ________	
 1C07  00        .db ________
 
+Char 01
 1C08  18        .db ___XX___	; Player character
 1C09  24        .db __X__X__	
 1C0A  3C        .db __XXXX__	
@@ -1733,6 +1723,7 @@
 1C0E  3C        .db __XXXX__	
 1C0F  18        .db ___XX___
 
+Char 02
 1C10  38        .db __XXX___	
 1C11  5F        .db _X_XXXXX	
 1C12  A9        .db X_X_X__X	
@@ -1742,6 +1733,7 @@
 1C16  5F        .db _X_XXXXX	
 1C17  38        .db __XXX___
 
+Char 03
 1C18  1C        .db ___XXX__	; Snake head
 1C19  FA        .db XXXXX_X_	
 1C1A  95        .db X__X_X_X	
@@ -1751,6 +1743,7 @@
 1C1E  FA        .db XXXXX_X_	
 1C1F  1C        .db ___XXX__
 
+Char 04
 1C20  18        .db ___XX___	; Snake body
 1C21  7E        .db _XXXXXX_	
 1C22  E7        .db XXX__XXX	
@@ -1760,6 +1753,7 @@
 1C26  7E        .db _XXXXXX_	
 1C27  18        .db ___XX___
 
+Char 05
 1C28  18        .db ___XX___	; Normal mushroom
 1C29  7E        .db _XXXXXX_	
 1C2A  FF        .db XXXXXXXX	
@@ -1769,6 +1763,7 @@
 1C2E  3C        .db __XXXX__	
 1C2F  00        .db ________	
 
+Char 06
 1C30  18        .db ___XX___	; Mushroom after 1 hit
 1C31  7E        .db _XXXXXX_	
 1C32  FF        .db XXXXXXXX	
@@ -1778,6 +1773,7 @@
 1C36  00        .db ________	
 1C37  00        .db ________
 
+Char 07
 1C38  18        .db ___XX___	; Mushroom after 2 hits
 1C39  7E        .db _XXXXXX_	
 1C3A  FF        .db XXXXXXXX	
@@ -1787,6 +1783,8 @@
 1C3E  00        .db ________	
 1C3F  00        .db ________	
 
+
+Char 08
 1C40  44        .db _X___X__	; Heart thingy that falls from top
 1C41  EE        .db XXX_XXX_	
 1C42  EE        .db XXX_XXX_	
@@ -1796,6 +1794,7 @@
 1C46  10        .db ___X____
 1C47  00        .db ________
 
+Char 09
 1C48  0E        .db ____XXX_	; Double mushroom after level clear
 1C49  07        .db _____XXX	
 1C4A  0B        .db ____X_XX	
@@ -1807,6 +1806,7 @@
 
 ; The spider body sprites flip between each other as its moving animation
 
+Char 0a
 1C50  3C        .db __XXXX__	; Spider body sprite (1/2)
 1C51  DB        .db XX_XX_XX	
 1C52  42        .db _X____X_	
@@ -1816,6 +1816,7 @@
 1C56  42        .db _X____X_
 1C57  24        .db __X__X__
 
+Char 0b
 1C58  3C        .db __XXXX__	; Spider body sprite (2/2)
 1C59  DB        .db XX_XX_XX	
 1C5A  42        .db _X____X_	
@@ -1825,6 +1826,7 @@
 1C5E  42        .db _X____X_	
 1C5F  24        .db __X__X__
 
+Char 0c
 1C60  07        .db _____XXX	; Left spider leg sprite (1/2)
 1C61  08        .db ____X___	
 1C62  13        .db ___X__XX	
@@ -1834,6 +1836,7 @@
 1C66  12        .db ___X__X_	
 1C67  09        .db ____X__X
 
+Char 0d
 1C68  E0        .db XXX_____	; Right spider leg sprite (1/2)
 1C69  10        .db ___X____	
 1C6A  C8        .db XX__X___	
@@ -1843,6 +1846,7 @@
 1C6E  48        .db _X__X___	
 1C6F  90        .db X__X____	
 
+Char 0e
 1C70  07        .db _____XXX	; Left spider leg sprite (2/2)
 1C71  08        .db ____X___	
 1C72  13        .db ___X__XX	
@@ -1852,6 +1856,7 @@
 1C76  92        .db X__X__X_	
 1C77  92        .db X__X__X_	
 
+Char 0f
 1C78  E0        .db XXX_____	; Right spider leg sprite (2/2)
 1C79  10        .db ___X____	
 1C7A  C8        .db XX__X___	
@@ -1861,6 +1866,7 @@
 1C7E  49        .db _X__X__X	
 1C7F  49        .db _X__X__X
 
+Char 10
 1C80  00        .db ________	; Top part of fancy C used in menu
 1C81  1D        .db ___XXX_X	
 1C82  AA        .db X_X_X_X_	
@@ -1870,6 +1876,7 @@
 1C86  D2        .db XX_X__X_	
 1C87  E5        .db XXX__X_X	
 
+Char 11
 1C88  45        .db _X___X_X	; Bottom part of fancy C used in menu
 1C89  C0        .db XX______	
 1C8A  D0        .db XX_X____	
@@ -1879,6 +1886,7 @@
 1C8E  AA        .db X_X_X_X_	
 1C8F  1D        .db ___XXX_X	
 
+Char 12
 1C90  00        .db ________	
 1C91  18        .db ___XX___	; When dead, flips between this and next sprite
 1C92  24        .db __X__X__	; three times
@@ -1888,6 +1896,7 @@
 1C96  24        .db __X__X__	
 1C97  18        .db ___XX___	
 
+Char 13
 1C98  18        .db ___XX___	; .
 1C99  24        .db __X__X__	
 1C9A  42        .db _X____X_	
@@ -1897,6 +1906,7 @@
 1C9E  42        .db _X____X_	
 1C9F  3C        .db __XXXX__	
 
+Char 14
 1CA0  18        .db ___XX___	; Then flips between this and the next sprite
 1CA1  24        .db __X__X__	; three times. Then it clears the screen and
 1CA2  3C        .db __XXXX__	; restarts the game
@@ -1906,6 +1916,7 @@
 1CA6  42        .db _X____X_	
 1CA7  24        .db __X__X__	
 
+Char 15
 1CA8  18        .db ___XX___	
 1CA9  24        .db __X__X__	; .
 1CAA  3C        .db __XXXX__	
@@ -1915,6 +1926,7 @@
 1CAE  C3        .db XX____XX	
 1CAF  42        .db _X____X_	
 
+Char 16
 1CB0  42        .db _X____X_	; Bullet sprite
 1CB1  E7        .db XXX__XXX	
 1CB2  42        .db _X____X_	
@@ -1924,6 +1936,7 @@
 1CB6  42        .db _X____X_	
 1CB7  00        .db ________	
 
+Char 17
 1CB8  02        .db ______X_	; Left-most tail thingy of chilopoda underline
 1CB9  03        .db ______XX	
 1CBA  02        .db ______X_	
@@ -1933,6 +1946,7 @@
 1CBE  00        .db ________	
 1CBF  00        .db ________	
 
+Char 18
 1CC0  0F        .db ____XXXX	; Closes off tail thingy 
 1CC1  10        .db ___X____	
 1CC2  E0        .db XXX_____	
@@ -1942,6 +1956,7 @@
 1CC6  E0        .db XXX_____	
 1CC7  00        .db ________
 
+Char 19
 1CC8  BF        .db X_XXXXXX	; Main body of chilopoda underline
 1CC9  C0        .db XX______	
 1CCA  48        .db _X__X___	
@@ -1951,6 +1966,7 @@
 1CCE  01        .db _______X	
 1CCF  01        .db _______X
 
+Char 1a
 1CD0  00        .db ________	; Right side closing pointy thing of underline
 1CD1  80        .db X_______	
 1CD2  7C        .db _XXXXX__	
@@ -2022,19 +2038,21 @@
 1D13  1F        .db $1f		
 1D14  1F        .db $1f
 
-; Other data
-1D15  20        .db $20		
-1D16  20        .db $20		
-1D17  08        .db $08		
-1D18  09        .db $09		
-1D19  0C        .db $0c		
-1D1A  0F        .db $0f		
-1D1B  10        .db $10		
-1D1C  0F        .db $0f		
-1D1D  04        .db $04		
-1D1E  01        .db $01		
-1D1F  20        .db $20		
-1D20  17        .db $17		
+; Screen codes for Chilopoda message
+1D15  20        .db $20		" "
+1D16  20        .db $20		" "
+1D17  08        .db $08		"H"
+1D18  09        .db $09		"I"
+1D19  0C        .db $0c		"L"
+1D1A  0F        .db $0f		"O"
+1D1B  10        .db $10		"P"
+1D1C  0F        .db $0f		"O"
+1D1D  04        .db $04		"D"
+1D1E  01        .db $01		"A"
+1D1F  20        .db $20		" "
+
+; Custom characterscreen codes to print the creature under the title
+1D20  17        .db $17
 1D21  18        .db $18		
 1D22  19        .db $19		
 1D23  19        .db $19		
@@ -2048,61 +2066,74 @@
 1D2B  19        .db $19		
 1D2C  19        .db $19		
 1D2D  19        .db $19		
-1D2E  1A        .db $1a		
-1D2F  20        .db $20		
-1D30  0D        .db $0d		
-1D31  0D        .db $0d		
-1D32  18        .db $18		
-1D33  18        .db $18		
-1D34  09        .db $09		
-1D35  16        .db $16		
-1D36  20        .db $20		
-1D37  20        .db $20
-1D38  17        .db $17		
-1D39  05        .db $05		
-1D3A  04        .db $04		
-1D3B  05        .db $05		
-1D3C  16        .db $16
+1D2E  1A        .db $1a
 
-1D3D  A0 00     ldy #$00	
-1D3F  EE 2D 10  inc $102d	
-1D42  AD 2D 10  lda $102d	
-1D45  29 06     and #$06	
-1D47  09 02     ora #$02	
-1D49  8D 2E 10  sta $102e	
-1D4C  A9 00     lda #$00	
-1D4E  99 A0 1E  sta $1ea0,y	
-1D51  99 B6 1E  sta $1eb6,y	
-1D54  99 E2 1E  sta $1ee2,y	
-1D57  B9 15 1D  lda $1d15,y	
-1D5A  09 80     ora #$80	
-1D5C  99 CC 1E  sta $1ecc,y	
-1D5F  AD 2E 10  lda $102e	
-1D62  99 CC 96  sta $96cc,y	
-1D65  C8        iny 		
-1D66  C0 0B     cpy #$0b	
-1D68  D0 E2     bne $1d4c	
-1D6A  AE 2E 10  ldx $102e	
-1D6D  A9 10     lda #$10	
-1D6F  8D B7 1E  sta $1eb7	
-1D72  8E B7 96  stx $96b7	
-1D75  A9 11     lda #$11	
-1D77  8D CD 1E  sta $1ecd	
-1D7A  8E CD 96  stx $96cd	
-1D7D  A0 00     ldy #$00	
-1D7F  B9 20 1D  lda $1d20,y	
-1D82  99 F6 1E  sta $1ef6,y	
-1D85  AD 2E 10  lda $102e	
-1D88  99 F6 96  sta $96f6,y	
-1D8B  B9 2F 1D  lda $1d2f,y	
-1D8E  09 80     ora #$80	
-1D90  99 E8 1F  sta $1fe8,y	
-1D93  A9 03     lda #$03	
-1D95  99 E8 97  sta $97e8,y	
-1D98  C8        iny 		
-1D99  C0 0F     cpy #$0f	
-1D9B  D0 E2     bne $1d7f	
-1D9D  60        rts	
+1D2F  20        .db $20		" "
+1D30  0D        .db $0d		"M"
+1D31  0D        .db $0d		"M"
+1D32  18        .db $18		"X"
+1D33  18        .db $18		"X"
+1D34  09        .db $09		"I"
+1D35  16        .db $16		"V"
+1D36  20        .db $20		" "
+1D37  20        .db $20		" "
+1D38  17        .db $17		"W"
+1D39  05        .db $05		"E"
+1D3A  04        .db $04		"D"
+1D3B  05        .db $05		"E"
+1D3C  16        .db $16		"V"
+
+; This changes the color of the Chilopoda text
+
+1D3D  A0 00     ldy #$00
+1D3F  EE 2D 10  inc $102d	; 102d tracks how many times this function is called
+1D42  AD 2D 10  lda $102d	; Load the times this has been called
+1D45  29 06     and #$06	; Mask bits to force value to alternate between 2
+1D47  09 02     ora #$02	; and 6 every 4 times it is called
+1D49  8D 2E 10  sta $102e   ; 2 or 6 corresponds to red or blue screen color.
+                            ; Save it for later use
+
+; This loop clears an area of screen memory at the center and sets screen mem
+; for the Chilopoda title
+1D4C  A9 00     lda #$00	; Will update screen mem to 0x00 to clear it
+1D4E  99 A0 1E  sta $1ea0,y	; Clear the yth screen code of the screen mem row
+1D51  99 B6 1E  sta $1eb6,y	; .
+1D54  99 E2 1E  sta $1ee2,y	; .
+1D57  B9 15 1D  lda $1d15,y	; Load characters for Chilopoda message
+1D5A  09 80     ora #$80	; Use the built-in characters, not the custom ones
+1D5C  99 CC 1E  sta $1ecc,y	; Put title text
+1D5F  AD 2E 10  lda $102e	; Load the color it should be
+1D62  99 CC 96  sta $96cc,y	; Update to correct color
+1D65  C8        iny 		; Move to next character
+1D66  C0 0B     cpy #$0b	; Do this for the next 0xb characters from 1d15
+1D68  D0 E2     bne $1d4c   ; Keep looping until all characters printed
+
+; This block displays the fancy C in the title
+1D6A  AE 2E 10  ldx $102e  ; Load the screen color
+1D6D  A9 10     lda #$10   ; 0x10 corresponds to screen code for top of fancy C	
+1D6F  8D B7 1E  sta $1eb7  ; Display the top part of fancy C
+1D72  8E B7 96  stx $96b7  ; Set the top part's color
+1D75  A9 11     lda #$11   ; Load the bottom part of the fancy C
+1D77  8D CD 1E  sta $1ecd  ; Display the bottom part of the fancy C
+1D7A  8E CD 96  stx $96cd  ; Set the bottom part's color
+1D7D  A0 00     ldy #$00   ; Reset y to 0 for next loop
+
+; This loop displays the caterpillar creature thingy underneath the title
+; and the MMXIV WEDEV text at the bottom as well
+1D7F  B9 20 1D  lda $1d20,y ; Load the yth character
+1D82  99 F6 1E  sta $1ef6,y	; Display it at the correct position on screen
+1D85  AD 2E 10  lda $102e	; Load the color it should be
+1D88  99 F6 96  sta $96f6,y	; Display its color
+1D8B  B9 2F 1D  lda $1d2f,y	; Load character for bottom text
+1D8E  09 80     ora #$80	; Use the corresponding system character, not custom
+1D90  99 E8 1F  sta $1fe8,y	; Display it at correct position on screen
+1D93  A9 03     lda #$03	; Color to use for the bottom text
+1D95  99 E8 97  sta $97e8,y	; Update color for the bottom text
+1D98  C8        iny 		; Move onto the next character
+1D99  C0 0F     cpy #$0f	; Do this for 15 characters
+1D9B  D0 E2     bne $1d7f   ; Jump back up if not done
+
+1D9D  60        rts	        ; Return to caller
 
 1D9E  AD 18 10  lda $1018	
 1DA1  38        sec 		
