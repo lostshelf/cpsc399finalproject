@@ -30,26 +30,28 @@
 1016  00        .db $00		
 1017  00        .db $00
 
-; Current score (PETSCII chars)
+; Current score (Screen chars)
 1018  00        .db $00		
 1019  00        .db $00
 101A  00        .db $00
 101B  00        .db $00		
 101C  00        .db $00
 
+; Default amount of score to add
 101D  00        .db $00
 101E  00        .db $00		
 101F  00        .db $00
 1020  01        .db $01
 1021  00        .db $00
 
+; Temp data used for adding additional score
 1022  00        .db $00		
 1023  00        .db $00		
 1024  00        .db $00		
 1025  00        .db $00		
 1026  00        .db $00
 
-; All time High score (PETSCII chars)
+; All time High score (screen chars)
 1027  00        .db $00
 1028  01        .db $01		
 1029  09        .db $09		
@@ -62,9 +64,9 @@
 102E  00        .db $00		; Cycles between 2 and 6
 102F  00        .db $00		; Never changes
 1030  00        .db $00		; IRQ hardware interrupt status?
-1031  00        .db $00		; Some information? Either 4 or 6
-1032  00        .db $00		; Some information? Either 32 or __
-1033  01        .db $01		; Result of evil calculation at 1365
+1031  00        .db $00		; Short delay amount
+1032  00        .db $00		; Long delay amount
+1033  01        .db $01		; Random number
 1034  00        .db $00		; Movement direction. Byte bits represent move
                             ; direction as down left up right respectively i.e.
 							; 0b1=0x1 -> right movement whereas 0b10=0x2 -> up
@@ -84,6 +86,7 @@
 1040  12        .db $12		; at level 6
 1041  13        .db $13	    ; at level 7
 
+; Snake speed per level (0 is fastest speed. )
 1042  00        .db $00 
 1043  02        .db $02		
 1044  01        .db $01		
@@ -113,7 +116,7 @@
 1058  04        .db $04		
 1059  02        .db $02
 
-; Something at each level
+; Something else at each level?
 105A  01        .db $01		
 105B  04        .db $04		
 105C  05        .db $05		
@@ -123,8 +126,8 @@
 1060  01        .db $01		
 1061  06        .db $06
 
-1062  00        .db $00		
-1063  00        .db $00
+1062  00        .db $00		; Counter for snake movement
+1063  00        .db $00     ; When to actually move the snake
 
 1064  00        .db $00     ; Current primary color code
 1065  00        .db $00		; Current secondary color code
@@ -141,14 +144,14 @@
 107A  8D 28 03  sta $0328	; .
 107D  A9 C1     lda #$c1	; Changes the NMI interrupt vector
 107F  8D 18 03  sta $0318	; .
-1082  20 88 12  jsr $1288	
-1085  A9 01     lda #$01	
-1087  8D 33 10  sta $1033	
-108A  8D CD 12  sta $12cd
+1082  20 88 12  jsr $1288	; Initial hardware setup
+1085  A9 01     lda #$01	: 
+1087  8D 33 10  sta $1033	;
+108A  8D CD 12  sta $12cd   ; Initialize color pointer?
 
 ; Game jumps here after death
-108D  A9 00     lda #$00	; Clear 0 to later modify its high byte
-108F  09 60     ora #$60	; Corresponds to blue color
+108D  A9 00     lda #$00	; Clear A for later bit masking
+108F  09 60     ora #$60	; Corresponds to blue color bitmask
 1091  8D 0E 90  sta $900e	; Set auxillary color to blue
 1094  A0 00     ldy #$00	; Initialize index register to loop over game data
 1096  A9 00     lda #$00	; Clear game data
@@ -160,13 +163,13 @@
 10A2  8C 38 10  sty $1038	; .
 10A5  B9 4A 10  lda $104a,y	; Load snake color
 10A8  8D 64 10  sta $1064	; Store it for later use
-10AB  B9 52 10  lda $1052,y	; Load current primary color code
+10AB  B9 52 10  lda $1052,y	; Load current mushroom color code
 10AE  8D 65 10  sta $1065	; Store it for later use
 10B1  A0 04     ldy #$04	; Set entire screen color mem to purple
 10B3  A9 00     lda #$00	; Set entire screen code mem to empty chars
 10B5  20 4C 13  jsr $134c	; Call function that does the above
 10B8  20 71 14  jsr $1471	; Update top status text
-10BB  20 7E 14  jsr $147e	
+10BB  20 7E 14  jsr $147e	; Add mushrooms
 10BE  20 3D 1D  jsr $1d3d	; Print main menu screen
 10C1  A9 12     lda #$12	; Show spider at vertical pos 12
 10C3  8D 09 1A  sta $1a09	; Set spider vertical position
@@ -175,17 +178,17 @@
 10CB  A9 06     lda #$06	; 0x6 in low byte means set the loudness to 6
 10CD  09 60     ora #$60	; High byte corresponds to auxillary color
 10CF  8D 0E 90  sta $900e	; Set aux color to blue and loudness to 6
-10D2  20 90 1A  jsr $1a90	
+10D2  20 90 1A  jsr $1a90	; Draw spider
 10D5  20 D8 1C  jsr $1cd8	; Stop all audio
 10D8  20 3D 1D  jsr $1d3d	; Print main menu screen in case the spider is in it
-10DB  20 14 13  jsr $1314	; Delay a bit (game timing reasons? idk)
+10DB  20 14 13  jsr $1314	; Short hardware based delay
 10DE  20 75 13  jsr $1375	; Determines whether shoot button is held down
-10E1  AD 35 10  lda $1035   ; Check if shoot button is held down	
-10E4  C9 01     cmp #$01	; .
+10E1  AD 35 10  lda $1035   ; Get shoot buton status	
+10E4  C9 01     cmp #$01	; Check if it is held down
 10E6  D0 EA     bne $10d2	; If not, keep waiting
 10E8  20 E4 11  jsr $11e4	; Otherwise, play starting audio
 10EB  A9 03     lda #$03	; Number of lives to start with
-10ED  8D 37 10  sta $1037	; Store the number of lives
+10ED  8D 37 10  sta $1037	; Save the number of lives
 10F0  A9 01     lda #$01	; Level to start with
 10F2  8D 38 10  sta $1038	; Store the level
 
@@ -235,7 +238,7 @@
 1161  20 14 13  jsr $1314	; Hardware interrupt based delay
 1164  20 D8 1C  jsr $1cd8	; Stop all audio
 1167  20 14 13  jsr $1314	; Hardware interrupt based delay
-116A  20 04 16  jsr $1604	; Update player?
+116A  20 04 16  jsr $1604	; Update bullets
 116D  20 5A 18  jsr $185a	; Update snake?
 1170  20 90 1A  jsr $1a90	; Draw spider + spider checks
 1173  20 37 1B  jsr $1b37	; Update and draw heart hazard
@@ -664,50 +667,50 @@
 147A  AE 2D 10  ldx $102d   ; Get player vertical pos
 147D  60        rts 		
 
-147E  A2 00     ldx #$00	
+147E  A2 00     ldx #$00	; Initialize loop counter
 1480  20 65 13  jsr $1365	; Get random number
 1483  29 3F     and #$3f	; Limit it to 5 bits
 1485  09 C0     ora #$c0	; Turn on some bits
 1487  8D 0C 90  sta $900c	; Play the sound
 148A  20 65 13  jsr $1365	; Get another random number
 148D  A8        tay 		; Put it into Y
-148E  A9 05     lda #$05	; 
-1490  99 42 1E  sta $1e42,y	
-1493  AD 64 10  lda $1064	
-1496  99 42 96  sta $9642,y	
-1499  AD 38 10  lda $1038	
-149C  C9 00     cmp #$00	
-149E  F0 03     beq $14a3	
-14A0  20 14 13  jsr $1314	
-14A3  E8        inx 		
-14A4  E0 20     cpx #$20	
-14A6  D0 D8     bne $1480	
-14A8  20 D8 1C  jsr $1cd8	
+148E  A9 05     lda #$05	; Get mushroom screen code
+1490  99 42 1E  sta $1e42,y	; Put mushroom at random place on screen
+1493  AD 64 10  lda $1064	; Get it's color
+1496  99 42 96  sta $9642,y	; Set its color
+1499  AD 38 10  lda $1038	; Get the level 
+149C  C9 00     cmp #$00	; Check if in menu screen
+149E  F0 03     beq $14a3	; Don't delay if we are
+14A0  20 14 13  jsr $1314	; otherwise, hardware interrupt based delay
+14A3  E8        inx 		; Increment loop counter
+14A4  E0 20     cpx #$20	; We only want to place 20 mushrooms
+14A6  D0 D8     bne $1480	; Keep placing mushrooms if not done
+14A8  20 D8 1C  jsr $1cd8	; Stop any audio
 14AB  60        rts 		
 
-14AC  16        .db $16		; Next Player character row #
-14AD  0A        .db $0a		; Next Player character column #
-14AE  00        .db $00		; 1 when the player has moved
+14AC  16        .db $16		; Player character column position
+14AD  0A        .db $0a		; Player character row position
+14AE  00        .db $00		; Player draw/erase status for subroutine 1586
 14AF  00        .db $00		; Set to 1 while fire button held down
-14B0  00        .db $00		; Bullet # that was just fired
+14B0  00        .db $00		; Index for bullet that will be fired next
 
 
-14B1  A9 00     lda #$00    ; Set player move status to false
+14B1  A9 00     lda #$00    ; Enable bullet erase mode
 14B3  8D AE 14  sta $14ae   ; .
 14B6  A9 01     lda #$01    ; Load player screen code for printing
-14B8  8D 85 15  sta $1585	; .
+14B8  8D 85 15  sta $1585	; Pass it to subroutine 1586 for printing
 14BB  20 86 15  jsr $1586	; Display player
 14BE  AD 35 10  lda $1035	; Get shooting status
 14C1  8D AF 14  sta $14af	; Sync shooting statuses
-14C4  20 75 13  jsr $1375	; Check if shooting
-14C7  AD 35 10  lda $1035	; Save result
+14C4  20 75 13  jsr $1375	; Update shooting status
+14C7  AD 35 10  lda $1035	; Get updated shooting status
 14CA  C9 01     cmp #$01	; Check if player was shooting
-14CC  F0 03     beq $14d1	; 
+14CC  F0 03     beq $14d1	; Jump to shooting logic
 14CE  4C 09 15  jmp $1509	; If not, jump to movement handling
 14D1  AD AF 14  lda $14af	; Get previous shooting status
-14D4  C9 00     cmp #$00	; Check if they stopped shooting
+14D4  C9 00     cmp #$00	; Check if they weren't shooting
 14D6  F0 03     beq $14db	;
-14D8  4C 09 15  jmp $1509	; If they didnt, skip to movement handling
+14D8  4C 09 15  jmp $1509	; If they weren't, skip to movement handling
 14DB  A0 00     ldy #$00	; Initialize Y for later indexing
 14DD  B9 FF 15  lda $15ff,y	; Get bullet column #
 14E0  C9 FF     cmp #$ff	; Check if the bullet despawned
@@ -769,7 +772,7 @@
 156E  EE AC 14  inc $14ac	; Move player down
 1571  20 BE 15  jsr $15be	; Check for player collision with other entity
 1574  4C 77 15  jmp $1577	; Skip other movements
-1577  A9 01     lda #$01	; Set player movement status to true
+1577  A9 01     lda #$01	; Enable bullet draw mode
 1579  8D AE 14  sta $14ae	; .
 157C  A9 01     lda #$01	; Pass player screen code to display subroutine
 157E  8D 85 15  sta $1585	; .
@@ -778,7 +781,7 @@
 
 1585  00        .db $00    ; Screen code to print in subroutine 1586
 
-; Displays object at given coords?
+; Displays/erases player at the coordinates specified by 14ac and 14ad
 1586  AC AC 14  ldy $14ac   ; Get player horizontal pos
 1589  B9 E7 1C  lda $1ce7,y	; Get low byte for yth row of screen
 158C  85 FB     sta $fb	    ; Store in zero-page for later use
@@ -790,9 +793,9 @@
 1598  85 FE     sta $fe		; Store for later use
 159A  AC AD 14  ldy $14ad	; Load player character's column position
 159D  A2 00     ldx #$00	
-159F  AD AE 14  lda $14ae	; Check if player moved
-15A2  C9 01     cmp #$01	; .
-15A4  D0 03     bne $15a9	; If they didn't, clear the player character
+159F  AD AE 14  lda $14ae	; Check if we need to erase player or draw player
+15A2  C9 01     cmp #$01	; 1 means we need to draw the player
+15A4  D0 03     bne $15a9	; Update player location with a blank 
 15A6  AE 85 15  ldx $1585	; O.w. use the screen code specified in 1585
 15A9  8A        txa 		; Transfer char code into A to store in mem
 15AA  91 FB     sta ($fb),y	; Update screen with new char code
@@ -830,7 +833,7 @@
 15EA  60        rts 		
 
 15EB  C9 02     cmp #$02	; Check if the character is a snake
-15ED  10 01     bpl $15f0	; If higher than a snake, check if 
+15ED  10 01     bpl $15f0	; If higher than a snake, move onto next check
 15EF  60        rts 		
 
 15F0  C9 05     cmp #$05	; Check if it is a mushroom again
@@ -853,173 +856,176 @@
 1600  00        .db $00		
 1601  00        .db $00		
 1602  00        .db $00
-1603  00        .db $00				
 
+1603  00        .db $00	    ; Bullet loop counter
 
-1604  A9 00     lda #$00	
-1606  8D 03 16  sta $1603	
-1609  AC 03 16  ldy $1603	
-160C  B9 FF 15  lda $15ff,y	
-160F  C9 FF     cmp #$ff	
-1611  D0 03     bne $1616	
-1613  4C 66 17  jmp $1766	
-1616  B9 FB 15  lda $15fb,y	
-1619  8D 74 17  sta $1774	
-161C  B9 FF 15  lda $15ff,y	
-161F  8D 75 17  sta $1775	
-1622  A9 00     lda #$00	
-1624  8D 76 17  sta $1776	
-1627  20 78 17  jsr $1778	
-162A  CE 75 17  dec $1775	
-162D  AD 75 17  lda $1775	
-1630  C9 01     cmp #$01	
-1632  D0 0B     bne $163f	
-1634  A9 FF     lda #$ff	
-1636  AC 03 16  ldy $1603	
-1639  99 FF 15  sta $15ff,y	
-163C  4C 66 17  jmp $1766	
-163F  AC 03 16  ldy $1603	
-1642  99 FF 15  sta $15ff,y	
-1645  A8        tay 		
-1646  B9 E7 1C  lda $1ce7,y	
-1649  85 FB     sta $fb		
-164B  85 FD     sta $fd		
-164D  B9 FE 1C  lda $1cfe,y	
-1650  85 FC     sta $fc		
-1652  18        clc 		
-1653  69 78     adc #$78	
-1655  85 FE     sta $fe		
-1657  AC 74 17  ldy $1774	
-165A  B1 FB     lda ($fb),y	
-165C  C9 00     cmp #$00	
-165E  D0 10     bne $1670	
-1660  A9 16     lda #$16	
-1662  8D 76 17  sta $1776	
-1665  A9 03     lda #$03	
-1667  8D 77 17  sta $1777	
-166A  20 78 17  jsr $1778	
-166D  4C 66 17  jmp $1766	
-1670  C9 05     cmp #$05	
-1672  D0 1E     bne $1692	
-1674  A9 06     lda #$06	
-1676  8D 76 17  sta $1776	
-1679  AD 65 10  lda $1065	; Load current primary color
-167C  8D 77 17  sta $1777	
-167F  20 78 17  jsr $1778	
-1682  AC 03 16  ldy $1603	
-1685  A9 FF     lda #$ff	
-1687  99 FF 15  sta $15ff,y	
-168A  20 68 14  jsr $1468	
-168D  A9 C8     lda #$c8	
-168F  4C 63 17  jmp $1763	
-1692  C9 06     cmp #$06	
+; Bullet update function
+1604  A9 00     lda #$00	; Initialize counter
+1606  8D 03 16  sta $1603	; .
+1609  AC 03 16  ldy $1603	; Initalize bullet index
+160C  B9 FF 15  lda $15ff,y	; Get bullet row #
+160F  C9 FF     cmp #$ff	; Check if there is no bullet there
+1611  D0 03     bne $1616	; Jump to end of code if there is no bullet
+1613  4C 66 17  jmp $1766	; .
+1616  B9 FB 15  lda $15fb,y	; Get bullet column #
+1619  8D 74 17  sta $1774	; Store it for later use
+161C  B9 FF 15  lda $15ff,y	; Get bullet row #
+161F  8D 75 17  sta $1775	; Store it for later use
+1622  A9 00     lda #$00	; Set bullet color to white
+1624  8D 76 17  sta $1776	; .
+1627  20 78 17  jsr $1778	; Draw bullet
+162A  CE 75 17  dec $1775	; Get bullet's next row position
+162D  AD 75 17  lda $1775	; .
+1630  C9 01     cmp #$01	; Check if it will be off screen
+1632  D0 0B     bne $163f	; If it won't, skip bullet despawn code
+1634  A9 FF     lda #$ff	; Set bullet to off screen
+1636  AC 03 16  ldy $1603	; Get bullet index
+1639  99 FF 15  sta $15ff,y	; Update bullet status
+163C  4C 66 17  jmp $1766	; Jump to end of loop
+163F  AC 03 16  ldy $1603	; Otherwise, get the current bullet index
+1642  99 FF 15  sta $15ff,y	; Get its row #
+1645  A8        tay 		; Put it in Y
+1646  B9 E7 1C  lda $1ce7,y	; Get the low byte of the corresponding screen mem
+1649  85 FB     sta $fb		; Store it for later use
+164B  85 FD     sta $fd		; .
+164D  B9 FE 1C  lda $1cfe,y	; Get the high byte of the corresponding screen mem
+1650  85 FC     sta $fc		; Store it for later use
+1652  18        clc 		; Clear carry so addition isn't messed up
+1653  69 78     adc #$78	; Calculate high byte for color mem
+1655  85 FE     sta $fe		; Store it for later use
+1657  AC 74 17  ldy $1774	; Get the column for the bullet
+165A  B1 FB     lda ($fb),y	; Get screen code at the bullet location
+165C  C9 00     cmp #$00	; Check if it is empty
+165E  D0 10     bne $1670	; Skip drawing code if not empty
+1660  A9 16     lda #$16	; Get bullet sprite
+1662  8D 76 17  sta $1776	; Pass sprite to drawing function
+1665  A9 03     lda #$03	; Get color for bullet
+1667  8D 77 17  sta $1777	; Pass it to drawing function
+166A  20 78 17  jsr $1778	; Call drawing function
+166D  4C 66 17  jmp $1766	; Jump to end of code
+1670  C9 05     cmp #$05	; Check if it is a mushroom there
+1672  D0 1E     bne $1692	; 
+1674  A9 06     lda #$06	; Get screen code for half mushroom
+1676  8D 76 17  sta $1776	; Pass it to drawing function
+1679  AD 65 10  lda $1065	; Load primary color
+167C  8D 77 17  sta $1777	; Pass it to drawing function
+167F  20 78 17  jsr $1778	; Call drawing function
+1682  AC 03 16  ldy $1603	; Get bullet index
+1685  A9 FF     lda #$ff	; Get despawn value for bullet
+1687  99 FF 15  sta $15ff,y	; Set bullet to despawned
+168A  20 68 14  jsr $1468	; Update score
+168D  A9 C8     lda #$c8	; Load audio code to play
+168F  4C 63 17  jmp $1763	; Jump to audio playing code
+1692  C9 06     cmp #$06	; Check if it is 2/3 of a mushroom
 1694  D0 1E     bne $16b4	
-1696  A9 07     lda #$07	
-1698  8D 76 17  sta $1776	
-169B  AD 65 10  lda $1065	; Load current primary color
-169E  8D 77 17  sta $1777	
-16A1  20 78 17  jsr $1778	
-16A4  AC 03 16  ldy $1603	
-16A7  A9 FF     lda #$ff	
-16A9  99 FF 15  sta $15ff,y	
-16AC  20 68 14  jsr $1468	
-16AF  A9 CA     lda #$ca	
-16B1  4C 63 17  jmp $1763	
-16B4  C9 07     cmp #$07	
-16B6  D0 1E     bne $16d6	
-16B8  A9 00     lda #$00	
-16BA  8D 76 17  sta $1776	
+1696  A9 07     lda #$07	; Get 1/3 mushroom sprite
+1698  8D 76 17  sta $1776	; Pass it to drawing function
+169B  AD 65 10  lda $1065	; Load secondary color
+169E  8D 77 17  sta $1777	; Pass it to drawing function
+16A1  20 78 17  jsr $1778	; Call drawing function
+16A4  AC 03 16  ldy $1603	; Get current bullet index
+16A7  A9 FF     lda #$ff	; Get despawned status
+16A9  99 FF 15  sta $15ff,y	; Set current bullet to despawned
+16AC  20 68 14  jsr $1468	; Update score
+16AF  A9 CA     lda #$ca	; Load audio to play
+16B1  4C 63 17  jmp $1763	; Jump to end of loop and play some audio
+16B4  C9 07     cmp #$07	; Check if it is 1/3 of a mushroom
+16B6  D0 1E     bne $16d6	; Move onto next check if not
+16B8  A9 00     lda #$00	; Otherwise draw a blank as mushroom is now gone
+16BA  8D 76 17  sta $1776	; Pass blank screen code to drawing function
 16BD  AD 65 10  lda $1065	; Load current primary color
-16C0  8D 77 17  sta $1777	
-16C3  20 78 17  jsr $1778	
-16C6  AC 03 16  ldy $1603	
-16C9  A9 FF     lda #$ff	
-16CB  99 FF 15  sta $15ff,y	
-16CE  20 68 14  jsr $1468	
-16D1  A9 CC     lda #$cc	
-16D3  4C 63 17  jmp $1763	
-16D6  C9 02     cmp #$02	
-16D8  F0 0B     beq $16e5	
-16DA  C9 03     cmp #$03	
-16DC  F0 07     beq $16e5	
-16DE  C9 04     cmp #$04	
-16E0  F0 03     beq $16e5	
-16E2  4C 08 17  jmp $1708	
-16E5  A9 05     lda #$05	
-16E7  8D 76 17  sta $1776	
+16C0  8D 77 17  sta $1777	; Pass it to the drawing function
+16C3  20 78 17  jsr $1778	; Call drawing function
+16C6  AC 03 16  ldy $1603	; Get current bullet index
+16C9  A9 FF     lda #$ff	; Get despawn status number
+16CB  99 FF 15  sta $15ff,y	; Set current bullet to despawned
+16CE  20 68 14  jsr $1468	; Update score
+16D1  A9 CC     lda #$cc	; Get audio that will be played
+16D3  4C 63 17  jmp $1763	; Play some audio then go to next iteration of loop
+16D6  C9 02     cmp #$02	; Check if it is the left facing snake head
+16D8  F0 0B     beq $16e5	; Move onto updating snake if it is
+16DA  C9 03     cmp #$03	; Otherwise, check if it is right facing snake head
+16DC  F0 07     beq $16e5	; Move onto updating snake if it is as well
+16DE  C9 04     cmp #$04	; Check if it is the snake body
+16E0  F0 03     beq $16e5	; Move onto snake update code if it is
+16E2  4C 08 17  jmp $1708	; Move onto next check otherwise
+16E5  A9 05     lda #$05	; Get screen code for mushroom
+16E7  8D 76 17  sta $1776	; Pass it to draw function
 16EA  AD 65 10  lda $1065	; Load current primary color
-16ED  8D 77 17  sta $1777	
-16F0  20 78 17  jsr $1778	
-16F3  AC 03 16  ldy $1603	
-16F6  A9 FF     lda #$ff	
-16F8  99 FF 15  sta $15ff,y	
-16FB  A9 01     lda #$01	
+16ED  8D 77 17  sta $1777	; Pass it to draw function
+16F0  20 78 17  jsr $1778	; Call draw function
+16F3  AC 03 16  ldy $1603	; Get current bullet index
+16F6  A9 FF     lda #$ff	; Get bullet despawn status code
+16F8  99 FF 15  sta $15ff,y	; Set current bullet to despawned
+16FB  A9 01     lda #$01	;
 16FD  8D CD 12  sta $12cd	
-1700  20 52 14  jsr $1452	
-1703  A9 A0     lda #$a0	
-1705  4C 63 17  jmp $1763	
-1708  C9 08     cmp #$08	
-170A  F0 03     beq $170f	
-170C  4C 37 17  jmp $1737	
-170F  A9 05     lda #$05	
-1711  8D 76 17  sta $1776	
+1700  20 52 14  jsr $1452	; Update score
+1703  A9 A0     lda #$a0	; Load audio code to play
+1705  4C 63 17  jmp $1763	; Play audio and go to next iteration of loop
+1708  C9 08     cmp #$08	; Check for heart hazard
+170A  F0 03     beq $170f	; Go to hazard handling code if so
+170C  4C 37 17  jmp $1737	; Otherwise go to next check
+170F  A9 05     lda #$05	; Get mushroom screen code
+1711  8D 76 17  sta $1776	; Pass it to drawing function
 1714  AD 65 10  lda $1065	; Load current primary color
-1717  8D 77 17  sta $1777	
-171A  20 78 17  jsr $1778	
-171D  AC 03 16  ldy $1603	
-1720  A9 FF     lda #$ff	
-1722  99 FF 15  sta $15ff,y	
+1717  8D 77 17  sta $1777	; Pass it to drawing function
+171A  20 78 17  jsr $1778	; Call drawing function
+171D  AC 03 16  ldy $1603	; Get current bullet index
+1720  A9 FF     lda #$ff	; Get bullet despawn status number
+1722  99 FF 15  sta $15ff,y	; Set current bullet to despawned
 1725  A9 01     lda #$01	
 1727  8D CD 12  sta $12cd	
-172A  A9 00     lda #$00	
-172C  8D 30 1B  sta $1b30	
-172F  20 52 14  jsr $1452	
-1732  A9 D2     lda #$d2	
-1734  4C 63 17  jmp $1763	
-1737  C9 0A     cmp #$0a	
-1739  10 03     bpl $173e	
-173B  4C 66 17  jmp $1766	
-173E  C9 10     cmp #$10	
-1740  30 03     bmi $1745	
-1742  4C 66 17  jmp $1766	
-1745  20 68 14  jsr $1468	
-1748  A9 00     lda #$00	
-174A  8D 76 17  sta $1776	
+172A  A9 00     lda #$00	; Set heart hazard to despawned
+172C  8D 30 1B  sta $1b30	; .
+172F  20 52 14  jsr $1452	; Update score
+1732  A9 D2     lda #$d2	; Load audio code to play
+1734  4C 63 17  jmp $1763	; Play audio then move onto next loop iteration
+1737  C9 0A     cmp #$0a	; Catch anything else
+1739  10 03     bpl $173e	; Go to next check
+173B  4C 66 17  jmp $1766	; Otherwise jump to end
+173E  C9 10     cmp #$10	; a-f=spider parts so check if bullet hit spider
+1740  30 03     bmi $1745	; Go to spider hit handling code
+1742  4C 66 17  jmp $1766	; Otherwise go to next iteration of loop
+1745  20 68 14  jsr $1468	; Update score
+1748  A9 00     lda #$00	; Get blank screen code
+174A  8D 76 17  sta $1776	; Pass it to drawing function
 174D  AD 65 10  lda $1065	; Load current primary color
-1750  8D 77 17  sta $1777	
-1753  20 78 17  jsr $1778	
-1756  AC 03 16  ldy $1603	
-1759  A9 FF     lda #$ff	
-175B  99 FF 15  sta $15ff,y	
-175E  EE 0B 1A  inc $1a0b	
-1761  A9 D2     lda #$d2	
-1763  8D 0C 90  sta $900c	
-1766  EE 03 16  inc $1603	
-1769  AD 03 16  lda $1603	
-176C  C9 04     cmp #$04	
-176E  F0 03     beq $1773	
-1770  4C 09 16  jmp $1609	
+1750  8D 77 17  sta $1777	; Pass it to drawing function
+1753  20 78 17  jsr $1778	; Call drawing function
+1756  AC 03 16  ldy $1603	; Get current bullet index
+1759  A9 FF     lda #$ff	; Get bullet despawn status number
+175B  99 FF 15  sta $15ff,y	; Set current bullet to despawned
+175E  EE 0B 1A  inc $1a0b	; Increment spider hit count
+1761  A9 D2     lda #$d2	; Load audio to play
+1763  8D 0C 90  sta $900c	; Play audio 
+1766  EE 03 16  inc $1603	; Move onto next bullet
+1769  AD 03 16  lda $1603	; Check if bullet index out of range
+176C  C9 04     cmp #$04	; .
+176E  F0 03     beq $1773	; If not, continue, otherwise exit
+1770  4C 09 16  jmp $1609	; Jump back to start
 1773  60        rts
 
-1774  00        .db $00		; Column of last bullet hit
-1775  00        .db $00		; Row of last bullet hit
-1776  00        .db $00		
-1777  00        .db $00		
+; Data that will be used in subroutine 1778
+1774  00        .db $00		; Bullet column #
+1775  00        .db $00		; Bullet row #
+1776  00        .db $00		; Bullet screen code
+1777  00        .db $00		; Bullet color code
 
-1778  AC 75 17  ldy $1775	
-177B  B9 E7 1C  lda $1ce7,y	
-177E  85 FB     sta $fb		
-1780  85 FD     sta $fd		
-1782  B9 FE 1C  lda $1cfe,y	
-1785  85 FC     sta $fc		
-1787  18        clc 		
-1788  69 78     adc #$78	
-178A  85 FE     sta $fe		
-178C  AC 74 17  ldy $1774	
-178F  AD 76 17  lda $1776	
-1792  91 FB     sta ($fb),y	
-1794  AD 77 17  lda $1777	
-1797  91 FD     sta ($fd),y	
+; Draw bullet
+1778  AC 75 17  ldy $1775	; Get bullet row #
+177B  B9 E7 1C  lda $1ce7,y	; Get low byte of screen mem address of that row
+177E  85 FB     sta $fb		; Store it for later reference
+1780  85 FD     sta $fd		; .
+1782  B9 FE 1C  lda $1cfe,y	; Get high byte of screen mem address of that row
+1785  85 FC     sta $fc		; Store it for later use
+1787  18        clc 		; Clear carry flag so addition isn't screwed up
+1788  69 78     adc #$78	; Calculate high byte for color mem address
+178A  85 FE     sta $fe		; Store for later use
+178C  AC 74 17  ldy $1774	; Get bullet column
+178F  AD 76 17  lda $1776	; Get bullet screen code
+1792  91 FB     sta ($fb),y	; Store it in screen mem
+1794  AD 77 17  lda $1777	; Get bullet color code
+1797  91 FD     sta ($fd),y	; Store it in color mem
 1799  60        rts 		
 
 ; Snake body part column position (FF if dead)
@@ -1044,7 +1050,7 @@
 17AC  00        .db $00		
 17AD  00        .db $00	
 
-; Snake body part movement direction
+; Snake body part horizontal movement direction
 17AE  00        .db $00		
 17AF  00        .db $00		
 17B0  00        .db $00		
@@ -1066,6 +1072,7 @@
 17C0  00        .db $00		
 17C1  00        .db $00
 
+; Snake body part vertical movement direction
 17C2  00        .db $00		
 17C3  00        .db $00		
 17C4  00        .db $00		
@@ -1154,8 +1161,7 @@
 1810  00        .db $00		
 1811  00        .db $00
 
-; 
-1812  00        .db $00		
+1812  00        .db $00		; Snake body color
 
 1813  A0 00     ldy #$00	
 1815  A9 FF     lda #$ff	; 0xff means snake body at this point is dead
@@ -1189,190 +1195,193 @@
 1855  99 EA 17  sta $17ea,y	; .
 1858  60        rts 		
 
-1859  00        .db $00			
+1859  00        .db $00		; Bit mask for sound value to play
 
-185A  AD 62 10  lda $1062	
-185D  CD 63 10  cmp $1063	
-1860  F0 04     beq $1866	
-1862  EE 62 10  inc $1062	
+185A  AD 62 10  lda $1062	; Get snake movement counter
+185D  CD 63 10  cmp $1063	; Check if at threshold to move snake
+1860  F0 04     beq $1866	; Move onto snake moving code
+1862  EE 62 10  inc $1062	; Otherwise just increment movement counter
 1865  60        rts 		
 
-1866  A9 00     lda #$00	
-1868  8D 62 10  sta $1062	
-186B  EE 59 18  inc $1859	
-186E  AD 59 18  lda $1859	
-1871  29 0F     and #$0f	
-1873  8D 59 18  sta $1859	
-1876  18        clc 		
-1877  69 BE     adc #$be	
-1879  8D 0A 90  sta $900a	
-187C  AC 38 10  ldy $1038	
-187F  B9 3A 10  lda $103a,y	
-1882  AA        tax 		
-1883  BD 9A 17  lda $179a,x	
-1886  C9 FF     cmp #$ff	
-1888  D0 03     bne $188d	
-188A  4C 8E 19  jmp $198e	
-188D  20 97 19  jsr $1997	
-1890  C9 05     cmp #$05	
-1892  30 0C     bmi $18a0	
-1894  C9 08     cmp #$08	
-1896  10 08     bpl $18a0	
-1898  A9 FF     lda #$ff	
-189A  9D 9A 17  sta $179a,x	
-189D  4C 8E 19  jmp $198e	
-18A0  C9 16     cmp #$16	
-18A2  D0 08     bne $18ac	
-18A4  A9 FF     lda #$ff	
-18A6  9D 9A 17  sta $179a,x	
-18A9  4C 8E 19  jmp $198e	
-18AC  BD FE 17  lda $17fe,x	
-18AF  C9 00     cmp #$00	
-18B1  D0 25     bne $18d8	
-18B3  B1 FB     lda ($fb),y	
-18B5  C9 00     cmp #$00	
-18B7  F0 18     beq $18d1	
-18B9  C9 01     cmp #$01	
-18BB  D0 08     bne $18c5	
-18BD  A9 01     lda #$01	
-18BF  8D 36 10  sta $1036	
-18C2  4C D1 18  jmp $18d1	
-18C5  C9 05     cmp #$05	
-18C7  D0 08     bne $18d1	
-18C9  A9 FF     lda #$ff	
-18CB  9D 9A 17  sta $179a,x	
-18CE  4C 8E 19  jmp $198e	
-18D1  A9 00     lda #$00	
-18D3  91 FB     sta ($fb),y	
-18D5  4C E6 18  jmp $18e6	
-18D8  A9 05     lda #$05	
-18DA  91 FB     sta ($fb),y	
-18DC  AD 64 10  lda $1064	
-18DF  91 FD     sta ($fd),y	
-18E1  A9 00     lda #$00	
-18E3  9D FE 17  sta $17fe,x	
-18E6  BD AE 17  lda $17ae,x	
-18E9  C9 01     cmp #$01	
-18EB  D0 38     bne $1925	
-18ED  BD 9A 17  lda $179a,x	
-18F0  C9 15     cmp #$15	
-18F2  F0 29     beq $191d	
-18F4  FE 9A 17  inc $179a,x	
-18F7  20 97 19  jsr $1997	
-18FA  C9 00     cmp #$00	
-18FC  D0 06     bne $1904	
-18FE  20 AC 19  jsr $19ac	
-1901  4C 8E 19  jmp $198e	
-1904  C9 01     cmp #$01	
-1906  D0 0B     bne $1913	
-1908  20 AC 19  jsr $19ac	
-190B  A9 01     lda #$01	
-190D  8D 36 10  sta $1036	
-1910  4C 8E 19  jmp $198e	
-1913  C9 16     cmp #$16	
-1915  D0 03     bne $191a	
-1917  4C 8E 19  jmp $198e	
-191A  DE 9A 17  dec $179a,x	
-191D  A9 04     lda #$04	
-191F  9D AE 17  sta $17ae,x	
-1922  4C 5D 19  jmp $195d	
-1925  BD 9A 17  lda $179a,x	
-1928  C9 00     cmp #$00	
-192A  F0 29     beq $1955	
-192C  DE 9A 17  dec $179a,x	
-192F  20 97 19  jsr $1997	
-1932  C9 00     cmp #$00	
-1934  D0 06     bne $193c	
-1936  20 AC 19  jsr $19ac	
-1939  4C 8E 19  jmp $198e	
-193C  C9 01     cmp #$01	
-193E  D0 0B     bne $194b	
-1940  20 AC 19  jsr $19ac	
-1943  A9 01     lda #$01	
-1945  8D 36 10  sta $1036	
-1948  4C 8E 19  jmp $198e	
-194B  C9 16     cmp #$16	
-194D  D0 03     bne $1952	
-194F  4C 8E 19  jmp $198e	
-1952  FE 9A 17  inc $179a,x	
-1955  A9 01     lda #$01	
-1957  9D AE 17  sta $17ae,x	
-195A  4C 5D 19  jmp $195d	
-195D  BD C2 17  lda $17c2,x	
-1960  C9 08     cmp #$08	
-1962  D0 15     bne $1979	
-1964  BD D6 17  lda $17d6,x	
-1967  C9 16     cmp #$16	
-1969  F0 0E     beq $1979	
-196B  FE D6 17  inc $17d6,x	
-196E  A9 08     lda #$08	
-1970  9D C2 17  sta $17c2,x	
-1973  20 AC 19  jsr $19ac	
-1976  4C 8E 19  jmp $198e	
-1979  BD D6 17  lda $17d6,x	
-197C  C9 02     cmp #$02	
-197E  F0 E4     beq $1964	
-1980  DE D6 17  dec $17d6,x	
-1983  A9 02     lda #$02	
-1985  9D C2 17  sta $17c2,x	
-1988  20 AC 19  jsr $19ac	
-198B  4C 8E 19  jmp $198e	
-198E  CA        dex 		
-198F  E0 FF     cpx #$ff	
-1991  F0 03     beq $1996	
-1993  4C 83 18  jmp $1883	
+1866  A9 00     lda #$00	; Reset snake movement counter
+1868  8D 62 10  sta $1062	; .
+186B  EE 59 18  inc $1859	; Calculate a sound to play based off loop counter
+186E  AD 59 18  lda $1859	; .
+1871  29 0F     and #$0f	; .
+1873  8D 59 18  sta $1859	; .
+1876  18        clc 		; .
+1877  69 BE     adc #$be	; .
+1879  8D 0A 90  sta $900a	; Play calculated audio 
+187C  AC 38 10  ldy $1038	; Get level
+187F  B9 3A 10  lda $103a,y	; Get snake length
+1882  AA        tax 		; Put it in X
+1883  BD 9A 17  lda $179a,x	; Get snake head column position
+1886  C9 FF     cmp #$ff	; Check if dead
+1888  D0 03     bne $188d	; If not, jump to movement code
+188A  4C 8E 19  jmp $198e	; Otherwise, move onto next body part
+188D  20 97 19  jsr $1997	; Get object at where snake body part should be
+1890  C9 05     cmp #$05	; Check if it is a mushroom
+1892  30 0C     bmi $18a0   ; Jump to other checks
+1894  C9 08     cmp #$08	; Check if it is a heart hazard
+1896  10 08     bpl $18a0   ; Jump to other checks
+1898  A9 FF     lda #$ff	; Part turned into a mushroom and is therefore dead
+189A  9D 9A 17  sta $179a,x	; Set snake part to dead
+189D  4C 8E 19  jmp $198e	; Move onto next snake part
+18A0  C9 16     cmp #$16	; Check if it is a bullet
+18A2  D0 08     bne $18ac	; If not, go move the snake
+18A4  A9 FF     lda #$ff	; Load dead status value
+18A6  9D 9A 17  sta $179a,x	; Set snake part to dead
+18A9  4C 8E 19  jmp $198e	; Move onto next snake part
+18AC  BD FE 17  lda $17fe,x ; Data here is always 0
+18AF  C9 00     cmp #$00	; Will always set the 0 flag
+18B1  D0 25     bne $18d8	; And so this will never jump
+18B3  B1 FB     lda ($fb),y	; Get screen code at snake location
+18B5  C9 00     cmp #$00	; Check if it is blank
+18B7  F0 18     beq $18d1	; Draw snake body part there
+18B9  C9 01     cmp #$01	; Check if it the player
+18BB  D0 08     bne $18c5	; Move to next check if not
+18BD  A9 01     lda #$01	; Set player to dead if the player is in the snake
+18BF  8D 36 10  sta $1036	; .
+18C2  4C D1 18  jmp $18d1	; Draw snake body
+18C5  C9 05     cmp #$05	; Check if it is a mushroom
+18C7  D0 08     bne $18d1	; Draw snake body if it is
+18C9  A9 FF     lda #$ff	; Kill snake body part if it is in a mushroom
+18CB  9D 9A 17  sta $179a,x	; .
+18CE  4C 8E 19  jmp $198e	; Move onto next body part
+18D1  A9 00     lda #$00	; Get blank character code
+18D3  91 FB     sta ($fb),y	; Set new body part screen mem to blank character
+18D5  4C E6 18  jmp $18e6	; This will always be taken so next code never runs
+18D8  A9 05     lda #$05	; Get screen code for mushroom
+18DA  91 FB     sta ($fb),y	; Place it at snake body part location
+18DC  AD 64 10  lda $1064	; Get primary color
+18DF  91 FD     sta ($fd),y	; Place it at snake body part color mem location
+18E1  A9 00     lda #$00	; ? 
+18E3  9D FE 17  sta $17fe,x	; ?
+
+18E6  BD AE 17  lda $17ae,x	; Get snake body part movement direction
+18E9  C9 01     cmp #$01	; Check if its moving right
+18EB  D0 38     bne $1925	; If not, go to left movement check
+18ED  BD 9A 17  lda $179a,x	; Get current body part column pos
+18F0  C9 15     cmp #$15	; Check if it is about to be out of bounds
+18F2  F0 29     beq $191d	; If it will be, go to handling code
+18F4  FE 9A 17  inc $179a,x	; Otherwise, just move it to the right
+18F7  20 97 19  jsr $1997	; Get screen code at snake body part
+18FA  C9 00     cmp #$00	; Check if it is blank
+18FC  D0 06     bne $1904	; Otherwise move onto next check
+18FE  20 AC 19  jsr $19ac	; Draw snake body part
+1901  4C 8E 19  jmp $198e	; Move onto next body part
+1904  C9 01     cmp #$01	; Check if the screen code is the player
+1906  D0 0B     bne $1913	; Otherwise move onto next check
+1908  20 AC 19  jsr $19ac	; Draw snake body part
+190B  A9 01     lda #$01	; Kill player
+190D  8D 36 10  sta $1036	; .
+1910  4C 8E 19  jmp $198e	; Move onto next body part
+1913  C9 16     cmp #$16	; Check if it is the bullet
+1915  D0 03     bne $191a	; Otherwise move to next check
+1917  4C 8E 19  jmp $198e	; Move onto next body part if it was the bullet
+191A  DE 9A 17  dec $179a,x	; Move snake body part left
+191D  A9 04     lda #$04	; Set movement direction to left instead
+191F  9D AE 17  sta $17ae,x	; .
+1922  4C 5D 19  jmp $195d	; Jump to vertical movement code
+1925  BD 9A 17  lda $179a,x	; Get snake body part column position
+1928  C9 00     cmp #$00	; Check if it is on the left-most edge
+192A  F0 29     beq $1955	; Go turn it the other way if so
+192C  DE 9A 17  dec $179a,x	; Otherwise just move it left
+192F  20 97 19  jsr $1997	; Get screen code at the new position
+1932  C9 00     cmp #$00	; Check if it is blank
+1934  D0 06     bne $193c	; Otherwise move to next check
+1936  20 AC 19  jsr $19ac	; Draw snake if blank
+1939  4C 8E 19  jmp $198e	; Move onto next snake body part
+193C  C9 01     cmp #$01	; Check if there is a player there
+193E  D0 0B     bne $194b	; Otherwise move to next check
+1940  20 AC 19  jsr $19ac	; Draw the snake
+1943  A9 01     lda #$01	; kill the player
+1945  8D 36 10  sta $1036	; .
+1948  4C 8E 19  jmp $198e	; Move onto next body part
+194B  C9 16     cmp #$16	; Check if there is a bullet
+194D  D0 03     bne $1952	; Move snake right if everything is clear
+194F  4C 8E 19  jmp $198e	; Otherwise move onto next body part
+1952  FE 9A 17  inc $179a,x	; Move snake right
+1955  A9 01     lda #$01	; Switch snake body part movement direction 
+1957  9D AE 17  sta $17ae,x	; .
+195A  4C 5D 19  jmp $195d	; Go to vertical movement direction handling
+195D  BD C2 17  lda $17c2,x	; Get veritcal movement direction
+1960  C9 08     cmp #$08	; Check if they're moving down
+1962  D0 15     bne $1979	; If not, go to upwards movement handling code
+1964  BD D6 17  lda $17d6,x	; Get snake body part row position
+1967  C9 16     cmp #$16	; Check if they're at the lowest row
+1969  F0 0E     beq $1979	; Switch directions if so
+196B  FE D6 17  inc $17d6,x	; Otherwise just move them down a row
+196E  A9 08     lda #$08	; Ensure it keeps going down
+1970  9D C2 17  sta $17c2,x	; .
+1973  20 AC 19  jsr $19ac	; Draw snake
+1976  4C 8E 19  jmp $198e	; Move onto next body part
+1979  BD D6 17  lda $17d6,x	; Get snake body part row position
+197C  C9 02     cmp #$02	; Check if it is at the very topmost row
+197E  F0 E4     beq $1964	; If it is, make it move in other direction
+1980  DE D6 17  dec $17d6,x	; Otherwise, just move it up
+1983  A9 02     lda #$02	; Ensure it keeps moving up
+1985  9D C2 17  sta $17c2,x	; .
+1988  20 AC 19  jsr $19ac	; Draw snake
+198B  4C 8E 19  jmp $198e	; Move onto next body part
+198E  CA        dex 		; Go to next body part
+198F  E0 FF     cpx #$ff	; Keep moving body parts until it overflows
+1991  F0 03     beq $1996	; If overflowed, we are done so exit subroutine
+1993  4C 83 18  jmp $1883	; Otherwise go back to the start
 1996  60        rts 		
 
-1997  BD D6 17  lda $17d6,x	
-199A  A8        tay 		
-199B  B9 E7 1C  lda $1ce7,y	
-199E  85 FB     sta $fb		
-19A0  B9 FE 1C  lda $1cfe,y	
-19A3  85 FC     sta $fc		
-19A5  BD 9A 17  lda $179a,x	
-19A8  A8        tay 		
-19A9  B1 FB     lda ($fb),y	
+; Get screen code at mem location where the Xth snake body part should be
+1997  BD D6 17  lda $17d6,x	; Get snake body row position
+199A  A8        tay 		; Put it in Y
+199B  B9 E7 1C  lda $1ce7,y	; Get the low byte of that screen mem row
+199E  85 FB     sta $fb		; Store it for later use
+19A0  B9 FE 1C  lda $1cfe,y	; Get high byte of that screen mem row
+19A3  85 FC     sta $fc		; Store for later use
+19A5  BD 9A 17  lda $179a,x	; Get the column of that snake body position
+19A8  A8        tay 		; Put it into Y
+19A9  B1 FB     lda ($fb),y	; Get the screen code at the body part
 19AB  60        rts 		
 
-19AC  BD D6 17  lda $17d6,x	
-19AF  A8        tay 		
-19B0  B9 E7 1C  lda $1ce7,y	
-19B3  85 FB     sta $fb		
-19B5  85 FD     sta $fd		
-19B7  B9 FE 1C  lda $1cfe,y	
-19BA  85 FC     sta $fc		
-19BC  18        clc 		
-19BD  69 78     adc #$78	
-19BF  85 FE     sta $fe		
-19C1  BD 9A 17  lda $179a,x	
-19C4  A8        tay 		
-19C5  BD EA 17  lda $17ea,x	
-19C8  C9 00     cmp #$00	
-19CA  D0 0A     bne $19d6	
-19CC  A9 04     lda #$04	
-19CE  91 FB     sta ($fb),y	
-19D0  AD 12 18  lda $1812	
-19D3  91 FD     sta ($fd),y	
+; Draw snake 
+19AC  BD D6 17  lda $17d6,x	; Get snake body part row pos
+19AF  A8        tay 		; Put it into Y
+19B0  B9 E7 1C  lda $1ce7,y	; Get the low byte screen mem address for that row
+19B3  85 FB     sta $fb		; Store for later use
+19B5  85 FD     sta $fd		; .
+19B7  B9 FE 1C  lda $1cfe,y	; Get high byte screen mem address for that row
+19BA  85 FC     sta $fc		; Store it for later use
+19BC  18        clc 		; Clear carry in prep for color mem calculation
+19BD  69 78     adc #$78	; Calculate high byte of color mem address
+19BF  85 FE     sta $fe		; Store for later use
+19C1  BD 9A 17  lda $179a,x	; Get column position of snake body part
+19C4  A8        tay 		; Put it into Y
+19C5  BD EA 17  lda $17ea,x	; Check if it is the snake head
+19C8  C9 00     cmp #$00	; .
+19CA  D0 0A     bne $19d6	; If it is, go to snake head handling code
+19CC  A9 04     lda #$04	; Otherwise, get the body screen code
+19CE  91 FB     sta ($fb),y	; Put it into screen mem
+19D0  AD 12 18  lda $1812	; Get the snake body color
+19D3  91 FD     sta ($fd),y	; Put it into screen mem as well
 19D5  60        rts 		
 
-19D6  BD AE 17  lda $17ae,x	
-19D9  C9 01     cmp #$01	
-19DB  D0 03     bne $19e0	
-19DD  4C EA 19  jmp $19ea	
-19E0  C9 04     cmp #$04	
-19E2  D0 03     bne $19e7	
-19E4  4C F3 19  jmp $19f3	
-19E7  4C E7 19  jmp $19e7	
-19EA  A9 03     lda #$03	
-19EC  91 FB     sta ($fb),y	
-19EE  A9 03     lda #$03	
-19F0  91 FD     sta ($fd),y	
+19D6  BD AE 17  lda $17ae,x	; Get the movement direction of the head
+19D9  C9 01     cmp #$01	; Check if it is moving right
+19DB  D0 03     bne $19e0	; Go to next check if not
+19DD  4C EA 19  jmp $19ea	; Go to right movement handling code if it is
+19E0  C9 04     cmp #$04	; Check if it is moving left
+19E2  D0 03     bne $19e7	; Loop forever if it isn't as this isnt possible
+19E4  4C F3 19  jmp $19f3	; Go to left movement handling
+19E7  4C E7 19  jmp $19e7	; Infinite error loop
+19EA  A9 03     lda #$03	; Get screen code for right facing head
+19EC  91 FB     sta ($fb),y	; Draw head on screen
+19EE  A9 03     lda #$03	; Get color for head
+19F0  91 FD     sta ($fd),y	; Update head color
 19F2  60        rts 		
 
-19F3  A9 02     lda #$02	
-19F5  91 FB     sta ($fb),y	
-19F7  A9 03     lda #$03	
-19F9  91 FD     sta ($fd),y	
+19F3  A9 02     lda #$02	; Get screen code for left facing head
+19F5  91 FB     sta ($fb),y	; Draw correct facing head on screen
+19F7  A9 03     lda #$03	; Get color of head
+19F9  91 FD     sta ($fd),y	; Set head color
 19FB  60        rts 		
 
 ; Character code for spider V1
@@ -1425,35 +1434,38 @@
 1A38  D0 F2     bne $1a2c	; Keep updating screen mem if not done yet
 1A3A  60        rts 		
 
-1A3B  C9 01     cmp #$01	
+; Update sprite
+1A3B  C9 01     cmp #$01	; Check if in first spider animation
 1A3D  D0 0F     bne $1a4e	
-1A3F  20 60 1A  jsr $1a60	
-1A42  BD FF 19  lda $19ff,x	
-1A45  91 FB     sta ($fb),y	
-1A47  C8        iny 		
-1A48  E8        inx 		
-1A49  E0 03     cpx #$03	
-1A4B  D0 F2     bne $1a3f	
+1A3F  20 60 1A  jsr $1a60	; Check if player walked into spider
+1A42  BD FF 19  lda $19ff,x	; Get next sprite for spider
+1A45  91 FB     sta ($fb),y	; Display sprite
+1A47  C8        iny 		; Move onto next spider body part
+1A48  E8        inx 		; Move onto next sprite
+1A49  E0 03     cpx #$03	; Keep updating until all spider parts are drawn
+1A4B  D0 F2     bne $1a3f	; .
 1A4D  60        rts 		
 
-1A4E  C9 02     cmp #$02	
-1A50  D0 0B     bne $1a5d	
-1A52  A9 00     lda #$00	
-1A54  91 FB     sta ($fb),y	
-1A56  C8        iny 		
-1A57  E8        inx 		
-1A58  E0 03     cpx #$03	
-1A5A  D0 F6     bne $1a52	
+
+1A4E  C9 02     cmp #$02	; Check if in second spider animation
+1A50  D0 0B     bne $1a5d	; Nothing else should be possible, so just hang
+1A52  A9 00     lda #$00	; Get blank screen code
+1A54  91 FB     sta ($fb),y	; Update spider part with blank
+1A56  C8        iny 		; Move to next screen code
+1A57  E8        inx 		; Increment loop counter
+1A58  E0 03     cpx #$03	; Keep looping until all three body parts are blank
+1A5A  D0 F6     bne $1a52	; Go back to start of loop if not done
 1A5C  60        rts 		
 
-; Infinite loop used for errors maybe?
+; Infinite loop used for invalid program state
 1A5D  4C 5D 1A  jmp $1a5d
 
-1A60  B1 FB     lda ($fb),y	
+; Check if player walked into spider
+1A60  B1 FB     lda ($fb),y	; Get screen code at spider position
 1A62  C9 01     cmp #$01	; Check if player walked into spider
 1A64  D0 05     bne $1a6b	; If not, exit this subroutine
-1A66  A9 01     lda #$01	; O.w. make player die
-1A68  8D 36 10  sta $1036	; Value of 1 at 1036 means player is dead
+1A66  A9 01     lda #$01	; Get player dead status value
+1A68  8D 36 10  sta $1036	; Kill player
 1A6B  60        rts 		
 
 ; Updates spider color 
@@ -1468,7 +1480,7 @@
 1A7C  60        rts 		
 
 ; Updates spider sprite to spider V2
-1A7D  A2 00     ldx #$00	
+1A7D  A2 00     ldx #$00	; Initialize loop counter
 1A7F  AC 0A 1A  ldy $1a0a	; Get spider horizontal position
 1A82  BD 05 1A  lda $1a05,x	; Load alternative spider sprite
 1A85  91 FD     sta ($fd),y	; Display new spider sprite on screen
@@ -1478,60 +1490,60 @@
 1A8B  D0 F5     bne $1a82	; Keep going until done updating all of them
 1A8D  60        rts 		
 
-1A8E  00        .db $00		
-1A8F  00        .db $00     ; Spider movement speed?
+1A8E  00        .db $00		; Spider movement counter
+1A8F  00        .db $00     ; Spider movement limit bit mask
 
-1A90  EE 8E 1A  inc $1a8e 
-1A93  AD 8E 1A  lda $1a8e	
-1A96  2D 8F 1A  and $1a8f	
-1A99  8D 8E 1A  sta $1a8e	
-1A9C  C9 00     cmp #$00	
-1A9E  F0 03     beq $1aa3	
-1AA0  4C 0C 1B  jmp $1b0c	; Don't move spider if previous calculation was 0
-1AA3  AD 08 1A  lda $1a08	; Load some info bout the spider
+1A90  EE 8E 1A  inc $1a8e   ; Increment spider movement counter
+1A93  AD 8E 1A  lda $1a8e	; Load new counter
+1A96  2D 8F 1A  and $1a8f	; Mask its bits
+1A99  8D 8E 1A  sta $1a8e	; Save newly calculated value
+1A9C  C9 00     cmp #$00	; Check if new value is 0
+1A9E  F0 03     beq $1aa3	; Don't move spider if previous calculation was 0
+1AA0  4C 0C 1B  jmp $1b0c	; .
+1AA3  AD 08 1A  lda $1a08	; Load spider animation frame #
 1AA6  48        pha 		; Push it to stack
-1AA7  A9 02     lda #$02	; Set that info bout spider to 2
+1AA7  A9 02     lda #$02	; Tell subroutine 1a0c to clear spider
 1AA9  8D 08 1A  sta $1a08	; .
-1AAC  20 0C 1A  jsr $1a0c	; Display spider at new position
+1AAC  20 0C 1A  jsr $1a0c	; Clear spider
 1AAF  68        pla 		; Pop A from stack
-1AB0  8D 08 1A  sta $1a08	; Restore that information back
-1AB3  EE 08 1A  inc $1a08	; Increment said information
-1AB6  20 65 13  jsr $1365	; Random calculation of pain and anguish??
-1AB9  29 07     and #$07	; Mask out some unnessecary bits
-1ABB  C9 00     cmp #$00	; If its 0, skip some code that depended on it?
-1ABD  D0 0F     bne $1ace	; .
+1AB0  8D 08 1A  sta $1a08	; Restore spider animation frame #
+1AB3  EE 08 1A  inc $1a08	; Move onto next animation
+1AB6  20 65 13  jsr $1365	; Get random number
+1AB9  29 07     and #$07	; Clamp value between 0 and 7
+1ABB  C9 00     cmp #$00	; If random number is 0, move spider right
+1ABD  D0 0F     bne $1ace	; Otherwise, move onto next check
 1ABF  AD 0A 1A  lda $1a0a	; Load spider pos
 1AC2  C9 13     cmp #$13	; Check if its off screen
 1AC4  F0 46     beq $1b0c	; Skip to making sure its back on screen
-1AC6  A2 F9     ldx #$f9	; Random magic number of pain??
+1AC6  A2 F9     ldx #$f9	; Sound to play later
 1AC8  EE 0A 1A  inc $1a0a	; Move spider right
 1ACB  4C 09 1B  jmp $1b09	; Jump to displaying spider
-1ACE  C9 01     cmp #$01	; Check if it is off screen, but on the other side
+1ACE  C9 01     cmp #$01	; If random number is 1, move spider up
 1AD0  D0 0F     bne $1ae1	; O.w., check if it is going off screen upwards
 1AD2  AD 09 1A  lda $1a09	; Load spider vertical position
 1AD5  C9 0F     cmp #$0f	; Check if it's out of bounds
-1AD7  F0 33     beq $1b0c	
-1AD9  A2 D2     ldx #$d2	
-1ADB  CE 09 1A  dec $1a09	
-1ADE  4C 09 1B  jmp $1b09	
-1AE1  C9 02     cmp #$02	
-1AE3  D0 0F     bne $1af4	
-1AE5  AD 0A 1A  lda $1a0a	
-1AE8  C9 00     cmp #$00	
-1AEA  F0 20     beq $1b0c	
-1AEC  A2 FB     ldx #$fb	
-1AEE  CE 0A 1A  dec $1a0a	
-1AF1  4C 09 1B  jmp $1b09	
-1AF4  C9 03     cmp #$03	
-1AF6  D0 0F     bne $1b07	
-1AF8  AD 09 1A  lda $1a09	
-1AFB  C9 16     cmp #$16	
-1AFD  F0 0D     beq $1b0c	
-1AFF  A2 DE     ldx #$de	
-1B01  EE 09 1A  inc $1a09	
-1B04  4C 09 1B  jmp $1b09	
-1B07  A2 00     ldx #$00	
-1B09  8E 0C 90  stx $900c
+1AD7  F0 33     beq $1b0c	; If it is, only switch sprites
+1AD9  A2 D2     ldx #$d2	; Otherwise, play an audio later
+1ADB  CE 09 1A  dec $1a09	; Move spider down
+1ADE  4C 09 1B  jmp $1b09	; Go play the audio
+1AE1  C9 02     cmp #$02	; If the random number is 2, move spider left
+1AE3  D0 0F     bne $1af4	; Otherwise, move onto next check
+1AE5  AD 0A 1A  lda $1a0a	; Get spider column #
+1AE8  C9 00     cmp #$00	; Check if it would go out of bounds
+1AEA  F0 20     beq $1b0c	; If it would, don't move it and just draw it
+1AEC  A2 FB     ldx #$fb	; Set audio for playing later
+1AEE  CE 0A 1A  dec $1a0a	; Move spider left
+1AF1  4C 09 1B  jmp $1b09	; Draw spider
+1AF4  C9 03     cmp #$03	; If random number is 3, move spider down
+1AF6  D0 0F     bne $1b07	; Otherwise, do nothing
+1AF8  AD 09 1A  lda $1a09	; Get spider vertical pos
+1AFB  C9 16     cmp #$16	; Check if it will go out of bounds
+1AFD  F0 0D     beq $1b0c	; If it will, just draw it without audio or movement
+1AFF  A2 DE     ldx #$de	; Set audio that will be played later
+1B01  EE 09 1A  inc $1a09	; Move spider down
+1B04  4C 09 1B  jmp $1b09	; Draw spider
+1B07  A2 00     ldx #$00	; Clear audio
+1B09  8E 0C 90  stx $900c   ; Play specified audio
 
 1B0C  AD 08 1A  lda $1a08   ; Load spider animation frame
 1B0F  29 01     and #$01    ; Switch to next animation frame
@@ -1541,14 +1553,14 @@
 1B1A  C9 01     cmp #$01	; Check if its greater than 1
 1B1C  10 09     bpl $1b27	; If it is, update spider movement speed
 1B1E  20 6C 1A  jsr $1a6c	; Update spider color if it is
-1B21  A9 07     lda #$07    ; 
-1B23  8D 8F 1A  sta $1a8f	
+1B21  A9 07     lda #$07    ; Update spider movement bit mask
+1B23  8D 8F 1A  sta $1a8f	; .
 1B26  60        rts 		
 
-; Update spider movement speed
-1B27  A9 03     lda #$03	
-1B29  8D 8F 1A  sta $1a8f	
-1B2C  20 7D 1A  jsr $1a7d	
+; Update spider bit mask
+1B27  A9 03     lda #$03	; Set new spider movement bit mask
+1B29  8D 8F 1A  sta $1a8f	; .
+1B2C  20 7D 1A  jsr $1a7d	; Update spider sprite
 1B2F  60        rts 		
 
 1B30  00        .db $00		; Set to 1 if that heart shaped hazard has spawned
@@ -1703,7 +1715,7 @@ Char 01
 1C0F  18        .db ___XX___
 
 Char 02
-1C10  38        .db __XXX___	
+1C10  38        .db __XXX___	; Snake head facing left
 1C11  5F        .db _X_XXXXX	
 1C12  A9        .db X_X_X__X	
 1C13  1E        .db ___XXXX_	
@@ -1713,7 +1725,7 @@ Char 02
 1C17  38        .db __XXX___
 
 Char 03
-1C18  1C        .db ___XXX__	; Snake head
+1C18  1C        .db ___XXX__	; Snake head facing right
 1C19  FA        .db XXXXX_X_	
 1C1A  95        .db X__X_X_X	
 1C1B  78        .db _XXXX___	
