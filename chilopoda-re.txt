@@ -24,6 +24,7 @@
 
 1010  4C 66 10  jmp $1066   ; Jumps to actual program
 
+; Unused data
 1013  00        .db $00		
 1014  00        .db $00		
 1015  00        .db $00		
@@ -51,19 +52,19 @@
 1025  00        .db $00		
 1026  00        .db $00
 
-; All time High score (screen chars)
+; All time High score
 1027  00        .db $00
 1028  01        .db $01		
 1029  09        .db $09		
 102A  08        .db $08
 102B  01        .db $01
 
-102C  00        .db $00	    ; Player horizontal position. Range: 0x1 to 0x14
-102D  00        .db $00		; Player vertical position. Range: 0x10 to 0x14
+102C  00        .db $00	    ; Player position row #
+102D  00        .db $00		; Player position column #
 
-102E  00        .db $00		; Cycles between 2 and 6
+102E  00        .db $00		; Main menu screen color
 102F  00        .db $00		; Never changes
-1030  00        .db $00		; IRQ hardware interrupt status?
+1030  00        .db $00		; IRQ hardware interrupt status
 1031  00        .db $00		; Short delay amount
 1032  00        .db $00		; Long delay amount
 1033  01        .db $01		; Random number
@@ -87,7 +88,7 @@
 1041  13        .db $13	    ; at level 7
 
 ; Snake speed per level (0 is fastest speed. )
-1042  00        .db $00 
+1042  00        .db $00
 1043  02        .db $02		
 1044  01        .db $01		
 1045  00        .db $00		
@@ -116,7 +117,7 @@
 1058  04        .db $04		
 1059  02        .db $02
 
-; Something else at each level?
+; Color of mushroom left behind by snake at each level?
 105A  01        .db $01		
 105B  04        .db $04		
 105C  05        .db $05		
@@ -145,8 +146,8 @@
 107D  A9 C1     lda #$c1	; Changes the NMI interrupt vector
 107F  8D 18 03  sta $0318	; .
 1082  20 88 12  jsr $1288	; Initial hardware setup
-1085  A9 01     lda #$01	: 
-1087  8D 33 10  sta $1033	;
+1085  A9 01     lda #$01	: Initialize random number generator
+1087  8D 33 10  sta $1033	; .
 108A  8D CD 12  sta $12cd   ; Initialize color pointer?
 
 ; Game jumps here after death
@@ -202,29 +203,29 @@
 1106  A9 00     lda #$00	; 0 corresponds to empty custom char
 1108  20 4C 13  jsr $134c	; Set entire screen to empty chars and purple color
 110B  20 71 14  jsr $1471	; Update top status text
-110E  20 7E 14  jsr $147e	
+110E  20 7E 14  jsr $147e	; Add mushrooms
 1111  A9 00     lda #$00	; Set player status to alive
 1113  8D 36 10  sta $1036	; .
 1116  8D 39 10  sta $1039	; Set level transition status to false
-1119  8D 62 10  sta $1062	
+1119  8D 62 10  sta $1062	; Initialize snake movement counter
 111C  AC 38 10  ldy $1038	; Load level #
-111F  B9 42 10  lda $1042,y	; Load something about the level
-1122  8D 63 10  sta $1063	; Store it elsewhere
-1125  A0 00     ldy #$00	; Clear Y
-1127  A9 FF     lda #$ff	; 
-1129  99 FF 15  sta $15ff,y	; Clear variable
-112C  C8        iny 		; Move to next variable
-112D  C0 04     cpy #$04	; Clear 4 variables
-112F  D0 F6     bne $1127	; Loop back up until done clearing variables
+111F  B9 42 10  lda $1042,y	; Load snake speed at level
+1122  8D 63 10  sta $1063	; Store it for later movement comparison
+1125  A0 00     ldy #$00	; Initialize Y for looping
+1127  A9 FF     lda #$ff	; Set bullet state to despawned
+1129  99 FF 15  sta $15ff,y	; .
+112C  C8        iny 		; Move to next bullet
+112D  C0 04     cpy #$04	; Despawn all 4 bullets
+112F  D0 F6     bne $1127	; Loop back up until done despawning 
 1131  20 13 18  jsr $1813	; Update snake
 1134  A9 00     lda #$00	; Initialize spider hits to 0
 1136  8D 0B 1A  sta $1a0b	; .
-1139  20 65 13  jsr $1365	; Evil calculation of pain and despair
-113C  29 7F     and #$7f	; Mask out bits 0-6
+1139  20 65 13  jsr $1365	; Generate random number
+113C  29 7F     and #$7f	; Clamp number between 0 and 127
 113E  C9 13     cmp #$13	; Check if its out of bounds
 1140  10 F7     bpl $1139	; if it is, get another number
-1142  8D 0A 1A  sta $1a0a	; Set spider starting position to this number
-1145  A9 10     lda #$10	; Set spider starting row
+1142  8D 0A 1A  sta $1a0a	; Set spider column position to new number
+1145  A9 10     lda #$10	; Initialize spider row position
 1147  8D 09 1A  sta $1a09	; .
 114A  20 90 1A  jsr $1a90	; Draw spider + other shenanigans?
 114D  A9 00     lda #$00	; Initialize heart hazard status
@@ -571,15 +572,15 @@
 13C8  60        rts 		; At this point, they did not move
 
 ; Adds some value to the score
-13C9  20 E9 13  jsr $13e9	; Zero out some data
-13CC  A2 04     ldx #$04	; Set data limit
-13CE  BD 18 10  lda $1018,x	; Load part of current score
+13C9  20 E9 13  jsr $13e9	; Zero out temp score variables
+13CC  A2 04     ldx #$04	; Looping backwards so we'll add 5 vars in total
+13CE  BD 18 10  lda $1018,x	; Load current score
 13D1  18        clc 		; Clear carry so it doesn't mess with calculation
-13D2  7D 1D 10  adc $101d,x	; Add to other score?
-13D5  7D 22 10  adc $1022,x	; Then add again to high score
+13D2  7D 1D 10  adc $101d,x	; Add to earned points
+13D5  7D 22 10  adc $1022,x	; Add additional points
 13D8  C9 0A     cmp #$0a	; Check if result needs to be carried over
 13DA  30 06     bmi $13e2	; If not, do nothing
-13DC  FE 21 10  inc $1021,x	; Otherwise, increment the next character
+13DC  FE 21 10  inc $1021,x	; Otherwise, increment the previous
 13DF  38        sec 		; and set the carry
 13E0  E9 0A     sbc #$0a	; Then subtract 10 to get the current place value
 13E2  9D 18 10  sta $1018,x	; Store that in back into current score
@@ -587,7 +588,7 @@
 13E6  10 E6     bpl $13ce	; Loop until counter goes into negatives i.e. done
 13E8  60        rts
 
-; Zero out the 5 bytes at 1022
+; Zero out temp additional score data
 13E9  A2 04     ldx #$04	
 13EB  A9 00     lda #$00	
 13ED  9D 22 10  sta $1022,x	
@@ -667,6 +668,7 @@
 147A  AE 2D 10  ldx $102d   ; Get player vertical pos
 147D  60        rts 		
 
+; Add mushrooms
 147E  A2 00     ldx #$00	; Initialize loop counter
 1480  20 65 13  jsr $1365	; Get random number
 1483  29 3F     and #$3f	; Limit it to 5 bits
@@ -1139,7 +1141,7 @@
 17FC  00        .db $00		
 17FD  00        .db $00
 
-; Always 0?
+; Status variables for if snake body needs to spawn a mushroom
 17FE  00        .db $00		
 17FF  00        .db $00		
 1800  00        .db $00		
@@ -1161,27 +1163,27 @@
 1810  00        .db $00		
 1811  00        .db $00
 
-1812  00        .db $00		; Snake body color
+1812  00        .db $00		; Color of mushroom left behind by snake parts
 
-1813  A0 00     ldy #$00	
+1813  A0 00     ldy #$00	; Initialize loop counter
 1815  A9 FF     lda #$ff	; 0xff means snake body at this point is dead
 1817  99 9A 17  sta $179a,y	; Kill snake body at this point
 181A  A9 01     lda #$01	; Corresponds to right movement
 181C  99 AE 17  sta $17ae,y	; Set movement direction to right
-181F  A9 08     lda #$08	; 
-1821  99 C2 17  sta $17c2,y	
+181F  A9 08     lda #$08	; Corresponds to downwards movement direction
+1821  99 C2 17  sta $17c2,y	; Set movement direction to down
 1824  A9 02     lda #$02	; Spawn snake in second row
 1826  99 D6 17  sta $17d6,y	; Set snake body row positions all to 2
-1829  A9 00     lda #$00	; Clear some variables
-182B  99 EA 17  sta $17ea,y	; Clear snake head status
-182E  99 FE 17  sta $17fe,y	; Clear always 0 numbers?
+1829  A9 00     lda #$00	; Initialize snake variables to 0
+182B  99 EA 17  sta $17ea,y	; Initialize snake head status variables
+182E  99 FE 17  sta $17fe,y	; Initialize leave mushroom status variables
 1831  C8        iny 		; Move to next variable
 1832  C0 14     cpy #$14	; 14 values in each set to initialize
 1834  D0 DF     bne $1815	; Keep initializing until the 14 variables are done
 1836  AC 38 10  ldy $1038	; Load level #
-1839  B9 5A 10  lda $105a,y	; 
-183C  8D 12 18  sta $1812	
-183F  B9 3A 10  lda $103a,y	; Get max snake length
+1839  B9 5A 10  lda $105a,y	; Load snake death mushroom color
+183C  8D 12 18  sta $1812	; Save it for later use
+183F  B9 3A 10  lda $103a,y	; Get snake length at current level
 1842  A8        tay 		; Y will be used to go through the whole snake body
 1843  98        tya 		; A will be the column position for each body part
 1844  99 9A 17  sta $179a,y	; Set snake body part column position
@@ -1232,20 +1234,20 @@
 18A4  A9 FF     lda #$ff	; Load dead status value
 18A6  9D 9A 17  sta $179a,x	; Set snake part to dead
 18A9  4C 8E 19  jmp $198e	; Move onto next snake part
-18AC  BD FE 17  lda $17fe,x ; Data here is always 0
-18AF  C9 00     cmp #$00	; Will always set the 0 flag
-18B1  D0 25     bne $18d8	; And so this will never jump
-18B3  B1 FB     lda ($fb),y	; Get screen code at snake location
+18AC  BD FE 17  lda $17fe,x ; Get status variable for if body part left mushroom
+18AF  C9 00     cmp #$00	; Check if it didn't
+18B1  D0 25     bne $18d8	; If it did, go to mushroom placement code
+18B3  B1 FB     lda ($fb),y	; Otherwise we get the screen code at current pos
 18B5  C9 00     cmp #$00	; Check if it is blank
-18B7  F0 18     beq $18d1	; Draw snake body part there
-18B9  C9 01     cmp #$01	; Check if it the player
+18B7  F0 18     beq $18d1	; Draw snake body part there if it is
+18B9  C9 01     cmp #$01	; Otherwise, check if its the player
 18BB  D0 08     bne $18c5	; Move to next check if not
-18BD  A9 01     lda #$01	; Set player to dead if the player is in the snake
+18BD  A9 01     lda #$01	; Set player to dead otherwise
 18BF  8D 36 10  sta $1036	; .
 18C2  4C D1 18  jmp $18d1	; Draw snake body
 18C5  C9 05     cmp #$05	; Check if it is a mushroom
 18C7  D0 08     bne $18d1	; Draw snake body if it is
-18C9  A9 FF     lda #$ff	; Kill snake body part if it is in a mushroom
+18C9  A9 FF     lda #$ff	; Kill snake body part otherwise
 18CB  9D 9A 17  sta $179a,x	; .
 18CE  4C 8E 19  jmp $198e	; Move onto next body part
 18D1  A9 00     lda #$00	; Get blank character code
@@ -1255,8 +1257,8 @@
 18DA  91 FB     sta ($fb),y	; Place it at snake body part location
 18DC  AD 64 10  lda $1064	; Get primary color
 18DF  91 FD     sta ($fd),y	; Place it at snake body part color mem location
-18E1  A9 00     lda #$00	; ? 
-18E3  9D FE 17  sta $17fe,x	; ?
+18E1  A9 00     lda #$00	; Restore death mushroom status variable
+18E3  9D FE 17  sta $17fe,x	; .
 
 18E6  BD AE 17  lda $17ae,x	; Get snake body part movement direction
 18E9  C9 01     cmp #$01	; Check if its moving right
@@ -1358,9 +1360,9 @@
 19C5  BD EA 17  lda $17ea,x	; Check if it is the snake head
 19C8  C9 00     cmp #$00	; .
 19CA  D0 0A     bne $19d6	; If it is, go to snake head handling code
-19CC  A9 04     lda #$04	; Otherwise, get the body screen code
+19CC  A9 04     lda #$04	; Otherwise, get the  screen code
 19CE  91 FB     sta ($fb),y	; Put it into screen mem
-19D0  AD 12 18  lda $1812	; Get the snake body color
+19D0  AD 12 18  lda $1812	; Get snake death mushroom color
 19D3  91 FD     sta ($fd),y	; Put it into screen mem as well
 19D5  60        rts 		
 
@@ -1629,41 +1631,42 @@
 1BA7  8D 30 1B  sta $1b30	; .
 1BAA  60        rts 		
 
-1BAB  98        tya 		
-1BAC  18        clc 		
-1BAD  69 16     adc #$16	
-1BAF  A8        tay 		
-1BB0  B1 FB     lda ($fb),y	
-1BB2  C9 00     cmp #$00	
-1BB4  F0 19     beq $1bcf	
-1BB6  C9 01     cmp #$01	
-1BB8  D0 06     bne $1bc0	
-1BBA  A9 01     lda #$01	
-1BBC  8D 36 10  sta $1036	
+1BAB  98        tya 		; Put hazard column position in A
+1BAC  18        clc 		; Clear carry bit so addition isn't messed up
+1BAD  69 16     adc #$16	; Add 1 screen row worth of characters
+1BAF  A8        tay 		; Put it back into Y
+1BB0  B1 FB     lda ($fb),y	; Get the screen code at new hazard position
+1BB2  C9 00     cmp #$00	; Check if its blank
+1BB4  F0 19     beq $1bcf	; Continue to printing it
+1BB6  C9 01     cmp #$01	; Otherwise check if its the player
+1BB8  D0 06     bne $1bc0	; If not, continue to next check
+1BBA  A9 01     lda #$01	; If it was the player, kill them
+1BBC  8D 36 10  sta $1036	; .
 1BBF  60        rts 		
 
-1BC0  C9 16     cmp #$16	
-1BC2  D0 06     bne $1bca	
-1BC4  A9 00     lda #$00	
-1BC6  8D 30 1B  sta $1b30	
+1BC0  C9 16     cmp #$16	; Check if its a bullet
+1BC2  D0 06     bne $1bca	; If it isn't, move to next check
+1BC4  A9 00     lda #$00	; Disable hazard
+1BC6  8D 30 1B  sta $1b30	; .
 1BC9  60        rts 		
 
-1BCA  C9 05     cmp #$05	
-1BCC  10 01     bpl $1bcf	
-1BCE  60        rts 		
+1BCA  C9 05     cmp #$05	; Check if its a mushroom
+1BCC  10 01     bpl $1bcf	; If its anything else, go to drawing hazard
+1BCE  60        rts 		; Do nothing if it is
 
-1BCF  8D 35 1B  sta $1b35	
-1BD2  B1 FD     lda ($fd),y	
-1BD4  29 07     and #$07	
-1BD6  8D 36 1B  sta $1b36	
-1BD9  EE 34 1B  inc $1b34	
-1BDC  A9 08     lda #$08	
-1BDE  91 FB     sta ($fb),y	
-1BE0  A9 03     lda #$03	
-1BE2  91 FD     sta ($fd),y	
+1BCF  8D 35 1B  sta $1b35	; Save screen code of what was there before
+1BD2  B1 FD     lda ($fd),y	; Get its color
+1BD4  29 07     and #$07	; Clamp it between 0 and 7 (only 8 colors)
+1BD6  8D 36 1B  sta $1b36	; Save clapmed color
+1BD9  EE 34 1B  inc $1b34	; Move hazard to next row
+1BDC  A9 08     lda #$08	; Get hazard screen code
+1BDE  91 FB     sta ($fb),y	; Put it in screen mem
+1BE0  A9 03     lda #$03	; Get hazard color code
+1BE2  91 FD     sta ($fd),y	; Put it in color mem
 1BE4  60        rts 		
 
-1BE5  00        .db ________	; Unused data?
+; Unused data. Possibly for alignment?
+1BE5  00        .db ________
 1BE6  00        .db ________	
 1BE7  00        .db ________	
 1BE8  00        .db ________	
@@ -1695,7 +1698,7 @@
 ; There are 26 custom sprites
 
 Char 00
-1C00  00        .db ________    
+1C00  00        .db ________    ; Blank character
 1C01  00        .db ________	
 1C02  00        .db ________	
 1C03  00        .db ________	
@@ -1928,8 +1931,8 @@ Char 16
 1CB7  00        .db ________	
 
 Char 17
-1CB8  02        .db ______X_	; Left-most tail thingy of chilopoda underline
-1CB9  03        .db ______XX	
+1CB8  02        .db ______X_	; Left-most tail thingy of menu screen centipede
+1CB9  03        .db ______XX	; creature
 1CBA  02        .db ______X_	
 1CBB  03        .db ______XX	
 1CBC  02        .db ______X_	
@@ -1938,7 +1941,7 @@ Char 17
 1CBF  00        .db ________	
 
 Char 18
-1CC0  0F        .db ____XXXX	; Closes off tail thingy 
+1CC0  0F        .db ____XXXX	; Closes off tail thingy of centipede creature
 1CC1  10        .db ___X____	
 1CC2  E0        .db XXX_____	
 1CC3  18        .db ___XX___	
@@ -1948,8 +1951,8 @@ Char 18
 1CC7  00        .db ________
 
 Char 19
-1CC8  BF        .db X_XXXXXX	; Main body of chilopoda underline
-1CC9  C0        .db XX______	
+1CC8  BF        .db X_XXXXXX	; Main body of main menu screen centipede
+1CC9  C0        .db XX______	; creature
 1CCA  48        .db _X__X___	
 1CCB  5C        .db _X_XXX__	
 1CCC  B6        .db X_XX_XX_	
@@ -1958,8 +1961,8 @@ Char 19
 1CCF  01        .db _______X
 
 Char 1a
-1CD0  00        .db ________	; Right side closing pointy thing of underline
-1CD1  80        .db X_______	
+1CD0  00        .db ________	; Right side closing pointy thing of main menu
+1CD1  80        .db X_______	; screen centipede creature
 1CD2  7C        .db _XXXXX__	
 1CD3  60        .db _XX_____	
 1CD4  BE        .db X_XXXXX_	
@@ -2042,7 +2045,7 @@ Char 1a
 1D1E  01        .db $01		"A"
 1D1F  20        .db $20		" "
 
-; Custom characterscreen codes to print the creature under the title
+; Custom character screen codes to print the creature under the title
 1D20  17        .db $17
 1D21  18        .db $18		
 1D22  19        .db $19		
@@ -2059,6 +2062,7 @@ Char 1a
 1D2D  19        .db $19		
 1D2E  1A        .db $1a
 
+; Developer credit text
 1D2F  20        .db $20		" "
 1D30  0D        .db $0d		"M"
 1D31  0D        .db $0d		"M"
@@ -2081,8 +2085,8 @@ Char 1a
 1D42  AD 2D 10  lda $102d	; Load the times this has been called
 1D45  29 06     and #$06	; Mask bits to force value to alternate between 2
 1D47  09 02     ora #$02	; and 6 every 4 times it is called
-1D49  8D 2E 10  sta $102e   ; 2 or 6 corresponds to red or blue screen color.
-                            ; Save it for later use
+                            ; 2 or 6 corresponds to red or blue screen color.
+1D49  8D 2E 10  sta $102e ; Save it for later use
 
 ; This loop clears an area of screen memory at the center and sets screen mem
 ; for the Chilopoda title
@@ -2123,8 +2127,7 @@ Char 1a
 1D98  C8        iny 		; Move onto the next character
 1D99  C0 0F     cpy #$0f	; Do this for 15 characters
 1D9B  D0 E2     bne $1d7f   ; Jump back up if not done
-
-1D9D  60        rts	        ; Return to caller
+1D9D  60        rts
 
 ; Compare high score
 1D9E  AD 18 10  lda $1018   ; Load most significant decimal of score
